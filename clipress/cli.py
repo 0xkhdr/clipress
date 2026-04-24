@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 from clipress.engine import compress
 from clipress.learner import Learner
-from clipress.config import get_config
+from clipress.config import get_config, validate_workspace_config
 from clipress.metrics import format_report
 
 
@@ -140,10 +140,11 @@ def validate():
     """Validates .compressor/config.yaml against schema"""
     workspace = os.getcwd()
     try:
-        get_config(workspace)
-        click.echo("Config is valid.")
+        validate_workspace_config(workspace)
     except Exception as e:
-        click.echo(f"Config is invalid: {e}")
+        click.echo(f"Config is invalid: {e}", err=True)
+        sys.exit(1)
+    click.echo("Config is valid.")
 
 
 @main.command()

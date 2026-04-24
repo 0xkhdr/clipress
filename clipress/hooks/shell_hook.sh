@@ -22,9 +22,10 @@ if ! python3 -c "import clipress" &>/dev/null 2>&1; then
     return 0
 fi
 
-# Override the command output for AI agent contexts
-# Uses DEBUG trap to intercept command output
-# Only active when CLIPRESS_AGENT_MODE=true is set
+# Helper function for shell-based agents. NOT an auto-interceptor — call it explicitly:
+#   output=$(some_command)
+#   clipress_compress "some_command" "$output"
+# Or pipe directly: `some_command | clipress compress "some_command"`.
 clipress_compress() {
     local cmd="$1"
     local output="$2"

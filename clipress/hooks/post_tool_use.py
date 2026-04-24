@@ -34,10 +34,13 @@ def main():
         sys.exit(0)
 
     command = data.get("tool_input", {}).get("command", "")
-    output = data.get("tool_response", {}).get("output", "")
+    raw_output = data.get("tool_response", {}).get("output", "")
 
-    if not command or not output:
+    if not command or not raw_output:
         sys.exit(0)
+
+    # Claude Code occasionally returns structured tool payloads; coerce defensively.
+    output = raw_output if isinstance(raw_output, str) else str(raw_output)
 
     workspace = find_workspace_root(os.getcwd())
 

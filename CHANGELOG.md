@@ -1,5 +1,56 @@
 # Changelog
 
+## [1.2.2] - 2026-04-24
+### Fixed (Critical)
+- **Size-regression guard bypassed by whitespace bloat** (`engine.py`): the guard compared only
+  word-based token counts, so a strategy that added pure whitespace (e.g. `"\n" * 1000`) slipped
+  through unchanged. Guard now also compares byte length. (Surfaced by the previously failing
+  `test_size_regression_guard`.)
+- **User `security_patterns` were silently ignored** (`safety.py`, `config.py`): the safety gate
+  only consulted the hardcoded module-level list. User-supplied patterns under
+  `safety.security_patterns` in `config.yaml` are now compiled and applied on top of the defaults.
+- **`Learner.__init__` crashed on legacy/partial `registry.json`**: if the loaded file lacked
+  `stats` (or `entries`) keys, `stats.session_count += 1` raised `KeyError`, which was then
+  swallowed by the engine's blanket try/except — silently degrading to raw passthrough. Missing
+  top-level keys are now backfilled after load.
+
+### Fixed (High)
+- **`clipress validate` now exits non-zero** on invalid configs and reports the error on stderr.
+  Previously it always exited 0 because `get_config` fell back to defaults on validation failure.
+- **Version skew**: `clipress/__init__.py` hard-coded `__version__ = "0.1.0"` while `pyproject`
+  was 1.2.x. `__version__` is now sourced from `importlib.metadata`.
+- **Generic secret patterns tightened with word boundaries** (`\bsecret\b`, `\bpassword\b`,
+  `\bcredentials\b`, `\bid_rsa\b`, `\bid_ed25519\b`, `\bapi[_-]?key\b`) so legitimate tokens
+  like "secretary" no longer trip the safety gate.
+
+### Changed
+- Classifier: renamed the confusingly-named `num_diff_words` counter to `num_test_name_hits`
+  (it was used for the test-shape score, not diff). Removed the redundant second KV pass; `num_kv1`
+  and `num_kv2` are now computed once in the main loop.
+- Engine: unused `confidence` value from `classifier.detect` is now explicitly discarded.
+- `Learner._async_save` no longer spawns a thread per `record()`. A single daemon writer coalesces
+  bursts into one save.
+- `Learner.record` errors surface on stderr when `CLIPRESS_DEBUG=1` is set, instead of being
+  unconditionally swallowed.
+- `TestStrategy._SUMMARY` regex is now anchored so `--- a/file.txt` in mixed diff/test output
+  doesn't get mis-flagged as a summary line.
+- `ErrorStrategy` stdlib-frame stripping broadened beyond `/usr/lib/python` to cover
+  `site-packages`, `dist-packages`, pyenv, venv, conda, and `<frozen …>` frames.
+- `post_tool_use.py` hook coerces non-string `tool_response.output` defensively.
+- Shell hook comment no longer claims to use a DEBUG trap (it's a pipe helper).
+- Removed leftover dev artifact `fix_lint.py`.
+- README references `./install.sh`.
+
+### Added
+- `clipress.config.validate_workspace_config(workspace)` — raises on validation failure, used
+  by `clipress validate`.
+- Tests: `test_size_regression_guard_whitespace_bloat`,
+  `test_user_security_patterns_are_applied`, `test_invalid_user_security_pattern_is_ignored`,
+  `test_generic_secret_word_boundary`, `test_handles_registry_missing_stats_key`,
+  `test_handles_non_dict_registry_payload`,
+  `test_cli_validate_exits_nonzero_on_invalid_config`,
+  `test_cli_validate_passes_on_valid_config`, `test_package_version_matches_pyproject`.
+
 ## [1.2.1] - 2026-04-24
 ### Fixed
 - **Bug: Double Learner instantiation** (`engine.py`): `Learner(workspace)` was being constructed twice per `compress()` call for non-seed, non-cached commands — once for lookup and once redundantly for `record()`. This caused `session_count` to be incremented twice and wasted a full disk read. Fixed by tracking a single `learner = None` variable and reusing it.

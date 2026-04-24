@@ -119,6 +119,28 @@ def test_size_regression_guard(tmp_path):
     STRATEGIES.update(original_strategies)  # restore
 
 
+def test_size_regression_guard_whitespace_bloat(tmp_path):
+    """A strategy that adds only whitespace still trips the byte-length guard."""
+    from clipress.strategies.base import BaseStrategy
+    from clipress.strategies import STRATEGIES
+
+    class WhitespaceBloatStrategy(BaseStrategy):
+        def compress(self, output, params, contract):
+            return output + "\n" * 5000  # pure whitespace inflation
+
+    original = STRATEGIES.copy()
+    STRATEGIES["list"] = WhitespaceBloatStrategy()
+    try:
+        output = "line\n" * 30
+        res = compress("ls", output, str(tmp_path))
+        assert len(res) == len(output), (
+            f"whitespace bloat leaked through: {len(res)} > {len(output)}"
+        )
+    finally:
+        STRATEGIES.clear()
+        STRATEGIES.update(original)
+
+
 def test_learner_instantiated_once_per_compress(tmp_path, monkeypatch):
     """Learner must be instantiated only once per compress() call, not twice."""
     call_count = [0]

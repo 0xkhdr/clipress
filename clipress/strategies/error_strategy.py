@@ -1,5 +1,18 @@
+import re
 from typing import Any
 from .base import BaseStrategy
+
+
+# Heuristic markers for "noisy" stdlib / venv / package frames.
+# Broader than the original /usr/lib/python check so pyenv, conda, venvs,
+# and per-user installs are all trimmed.
+_STDLIB_FRAME = re.compile(
+    r"site-packages|dist-packages|/usr/lib/python|"
+    r"/usr/local/lib/python|/python\d+\.\d+/|"
+    r"/\.pyenv/|/anaconda\d*/|/miniconda\d*/|/conda/|"
+    r"/\.venv/|/venv/|/\.tox/|<frozen\s",
+    re.IGNORECASE,
+)
 
 
 class ErrorStrategy(BaseStrategy):
@@ -37,9 +50,7 @@ class ErrorStrategy(BaseStrategy):
             if in_traceback:
                 if 'File "' in line or "at line" in line or ln.startswith("at "):
                     # It's a frame
-                    if strip_stdlib and (
-                        "site-packages" in line or "/usr/lib/python" in line
-                    ):
+                    if strip_stdlib and _STDLIB_FRAME.search(line):
                         # skip it and the next line (the code snippet)
                         continue
                     if frames_kept < max_traceback:

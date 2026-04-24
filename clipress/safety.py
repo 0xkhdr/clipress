@@ -1,27 +1,48 @@
 import re
 from pathlib import Path
 
+# Word boundaries prevent false positives like "secretary" or "password_strength_meter".
 SECURITY_PATTERNS = [
     r"\.env$",
     r"\.env\.",  # .env files
-    r"id_rsa",
-    r"id_ed25519",  # SSH private keys
+    r"\bid_rsa\b",
+    r"\bid_ed25519\b",  # SSH private keys
     r"\.pem$",
     r"\.key$",  # certificates
-    r"credentials",  # AWS credentials file
-    r"secret",  # generic secret
-    r"password",  # generic password
-    r"api[_-]?key",  # API keys
-    r"AWS_SECRET",  # AWS specific
-    r"GITHUB_TOKEN",  # GitHub tokens
-    r"bearer\s+[a-zA-Z0-9]",  # Bearer tokens in output
+    r"\bcredentials\b",  # AWS credentials file
+    r"\bsecret\b",  # generic secret
+    r"\bpassword\b",  # generic password
+    r"\bapi[_-]?key\b",  # API keys
+    r"\bAWS_SECRET\b",  # AWS specific
+    r"\bGITHUB_TOKEN\b",  # GitHub tokens
+    r"\bbearer\s+[a-zA-Z0-9]",  # Bearer tokens in output
     r"-----BEGIN",  # PEM header
 ]
 
 # Commands that dump environment variables — their output is always security-sensitive
 SENSITIVE_ENV_COMMANDS = ["printenv", "declare", "env", "set"]
 
-_COMPILED_PATTERNS = [re.compile(p, re.IGNORECASE) for p in SECURITY_PATTERNS]
+_DEFAULT_COMPILED = [re.compile(p, re.IGNORECASE) for p in SECURITY_PATTERNS]
+
+# Per-workspace cache of compiled user patterns. Populated from config["safety"]["security_patterns"]
+# so users can extend the list without patching source.
+_USER_PATTERN_CACHE: dict[int, list[re.Pattern[str]]] = {}
+
+
+def _compile_user_patterns(patterns: list[str]) -> list[re.Pattern[str]]:
+    key = id(patterns)
+    cached = _USER_PATTERN_CACHE.get(key)
+    if cached is not None:
+        return cached
+    compiled: list[re.Pattern[str]] = []
+    for p in patterns:
+        try:
+            compiled.append(re.compile(p, re.IGNORECASE))
+        except re.error:
+            # Invalid regex — skip silently so a single bad pattern doesn't break safety.
+            continue
+    _USER_PATTERN_CACHE[key] = compiled
+    return compiled
 
 
 def load_blocklist(workspace: str) -> list[str]:
@@ -46,24 +67,30 @@ def load_blocklist(workspace: str) -> list[str]:
     return blocklist
 
 
-def is_security_sensitive(command: str, output: str) -> bool:
+def is_security_sensitive(
+    command: str, output: str, extra_patterns: list[re.Pattern[str]] | None = None
+) -> bool:
     """
     Returns True if command or output contains security patterns.
     Checks command path AND output content.
     Also blocks environment-dumping commands (printenv, declare, env, set).
+
+    `extra_patterns` are user-supplied compiled regexes (from config) that extend the defaults.
     """
     # Block environment-dumping commands unconditionally
     cmd_base = command.strip().split()[0] if command.strip() else ""
     if cmd_base in SENSITIVE_ENV_COMMANDS:
         return True
 
+    all_patterns = _DEFAULT_COMPILED + (extra_patterns or [])
+
     # Check command against security patterns
-    for p in _COMPILED_PATTERNS:
+    for p in all_patterns:
         if p.search(command):
             return True
 
     # Check output content against security patterns
-    for p in _COMPILED_PATTERNS:
+    for p in all_patterns:
         if p.search(output):
             return True
 
@@ -111,7 +138,9 @@ def should_skip(command: str, output: str, workspace: str, config: dict) -> tupl
         if cmd_normalized.startswith(prefix):
             return True, "command in user blocklist"
 
-    if is_security_sensitive(command, output):
+    user_patterns = config.get("safety", {}).get("security_patterns", []) or []
+    extra_compiled = _compile_user_patterns(user_patterns) if user_patterns else None
+    if is_security_sensitive(command, output, extra_compiled):
         return True, "security sensitive content detected"
 
     non_ascii_ratio = config.get("safety", {}).get("binary_non_ascii_ratio", 0.3)
