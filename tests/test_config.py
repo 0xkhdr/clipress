@@ -1,4 +1,5 @@
 from ruamel.yaml import YAML
+from clipress import config
 
 
 class _YamlWrapper:
@@ -12,7 +13,6 @@ class _YamlWrapper:
 
 
 yaml = _YamlWrapper()
-from clipress import config
 
 
 def test_config_deep_merge():

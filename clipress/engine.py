@@ -1,7 +1,6 @@
 import sys
 import collections
 import threading
-from pathlib import Path
 from clipress.config import get_config, build_seed_registry
 from clipress.safety import should_skip
 from clipress.classifier import detect
@@ -103,10 +102,8 @@ def compress(command: str, output: str, workspace: str) -> str:
             "always_strip": global_contract.get("always_strip", []) + cmd_contract.get("always_strip", [])
         }
 
-        # Track tokens before compression
-        raw_tokens = 0
-        if show_metrics or not entry.get("hot"):
-            raw_tokens = count_tokens(output)
+        # Track tokens before compression (always needed for regression guard)
+        raw_tokens = count_tokens(output)
 
         compressed = strategy.compress(output, entry.get("params", {}), contract)
 
@@ -115,9 +112,7 @@ def compress(command: str, output: str, workspace: str) -> str:
             compressed = output
 
         # Track tokens after compression
-        compressed_tokens = 0
-        if show_metrics or not entry.get("hot"):
-            compressed_tokens = count_tokens(compressed)
+        compressed_tokens = count_tokens(compressed)
 
         # Size-regression guard: if strategy made output larger, return original
         if raw_tokens > 0 and compressed_tokens > raw_tokens:

@@ -1,4 +1,3 @@
-import re
 import os
 from typing import Any
 from .base import BaseStrategy

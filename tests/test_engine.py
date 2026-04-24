@@ -1,3 +1,4 @@
+import time
 from clipress.engine import compress
 
 
@@ -27,8 +28,6 @@ def test_safety_gate_runs_before_compression(capsys):
     captured = capsys.readouterr()
     assert "clipress: skipped [security sensitive content detected]" in captured.err
 
-
-import time
 
 def test_contract_always_keep_survives_compression(tmp_path):
     # Configure workspace contract
