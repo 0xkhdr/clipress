@@ -59,7 +59,7 @@ class Learner:
             pass  # No-op on error
 
     def _async_save(self) -> None:
-        threading.Thread(target=self._save, daemon=True).start()
+        threading.Thread(target=self._save).start()
 
     def lookup(self, command: str) -> dict[str, Any] | None:
         try:
