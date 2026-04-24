@@ -1,0 +1,23 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.0.3, pluggy-1.6.0
+rootdir: /var/www/html/rai/up/clipress
+configfile: pyproject.toml
+plugins: cov-7.1.0
+collected 20 items
+
+tests/test_engine.py .....                                               [ 25%]
+tests/test_learner.py .......                                            [ 60%]
+tests/test_safety.py .......                                             [ 95%]
+tests/test_broken.py F                                                   [100%]
+
+=================================== FAILURES ===================================
+__________________________________ test_error __________________________________
+
+    def test_error():
+>       assert False
+E       assert False
+
+tests/test_broken.py:2: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_broken.py::test_error - assert False
+========================= 1 failed, 19 passed in 0.12s =========================

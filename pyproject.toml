@@ -1,0 +1,26 @@
+[project]
+name = "clipress"
+version = "0.1.0"
+description = "Universal CLI output compressor for AI agents"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.11"
+dependencies = [
+    "click>=8.0",
+    "ruamel.yaml>=0.18",
+    "rich>=13.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "tiktoken>=0.5",
+]
+
+[project.scripts]
+clipress = "clipress.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

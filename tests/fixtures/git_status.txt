@@ -1,0 +1,18 @@
+On branch main
+Your branch is up to date with 'origin/main'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   clipress/engine.py
+	modified:   tests/test_engine.py
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   clipress/cli.py
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	clipress/hooks/post_tool_use.py
+	tests/test_integration.py
+
