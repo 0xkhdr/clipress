@@ -4,7 +4,6 @@ from .base import BaseStrategy
 
 
 class KeyvalueStrategy(BaseStrategy):
-    _ANSI_ESCAPE = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
     _KV1 = re.compile(r"^(\s*\w[\w\s]*):\s+(\S.*)$")
     _KV2 = re.compile(r"^(\s*\w[\w\s]*)=\s*(\S.*)$")
     _TIMESTAMP = re.compile(r"time|date|at", re.IGNORECASE)
@@ -18,8 +17,7 @@ class KeyvalueStrategy(BaseStrategy):
         max_lines = params.get("max_lines", 20)
         strip_keys = params.get("always_strip_keys", [])
 
-        clean_output = self._ANSI_ESCAPE.sub("", output)
-        original_lines = clean_output.splitlines()
+        original_lines = output.splitlines()
 
         lines = []
         kv_pairs = []

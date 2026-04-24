@@ -1,10 +1,8 @@
-import re
 from typing import Any
 from .base import BaseStrategy
 
 
 class DiffStrategy(BaseStrategy):
-    _ANSI_ESCAPE = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
 
     def compress(
         self, output: str, params: dict[str, Any], contract: dict[str, Any]
@@ -15,8 +13,7 @@ class DiffStrategy(BaseStrategy):
         max_lines = params.get("max_lines", 80)
         context_lines = params.get("context_lines", 2)
 
-        clean_output = self._ANSI_ESCAPE.sub("", output)
-        original_lines = clean_output.splitlines()
+        original_lines = output.splitlines()
 
         lines = []
 

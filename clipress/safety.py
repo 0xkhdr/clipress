@@ -19,7 +19,8 @@ SECURITY_PATTERNS = [
     r"-----BEGIN",  # PEM header
 ]
 
-SENSITIVE_FILE_COMMANDS = ["cat", "less", "more", "head", "tail", "bat"]
+# Commands that dump environment variables — their output is always security-sensitive
+SENSITIVE_ENV_COMMANDS = ["printenv", "declare", "env", "set"]
 
 _COMPILED_PATTERNS = [re.compile(p, re.IGNORECASE) for p in SECURITY_PATTERNS]
 
@@ -50,13 +51,19 @@ def is_security_sensitive(command: str, output: str) -> bool:
     """
     Returns True if command or output contains security patterns.
     Checks command path AND output content.
+    Also blocks environment-dumping commands (printenv, declare, env, set).
     """
-    # Check command
+    # Block environment-dumping commands unconditionally
+    cmd_base = command.strip().split()[0] if command.strip() else ""
+    if cmd_base in SENSITIVE_ENV_COMMANDS:
+        return True
+
+    # Check command against security patterns
     for p in _COMPILED_PATTERNS:
         if p.search(command):
             return True
 
-    # Check if command is a sensitive file reader and output contains patterns
+    # Check output content against security patterns
     for p in _COMPILED_PATTERNS:
         if p.search(output):
             return True
@@ -68,9 +75,10 @@ def is_binary(output: str, non_ascii_ratio: float = 0.3) -> bool:
     """
     Returns True if output contains binary/non-printable bytes.
     Uses null byte detection + high non-ASCII ratio heuristic.
+    Scans the first 4096 bytes for thorough coverage.
     """
-    # Check first 512 chars/bytes
-    sample = output[:512]
+    # Check first 4096 chars/bytes (extended from 512 for better coverage)
+    sample = output[:4096]
     if "\x00" in sample:
         return True
 

@@ -32,13 +32,28 @@ def load_defaults() -> dict[str, Any]:
 def _validate(config: dict[str, Any]) -> None:
     assert config.get("engine", {}).get("min_lines_to_compress", 0) >= 5, "min_lines_to_compress must be >= 5"
     assert config.get("engine", {}).get("hot_cache_threshold", 0) >= 1, "hot_cache_threshold must be >= 1"
-    
+
     assert isinstance(config.get("engine", {}).get("strip_ansi", True), bool), "strip_ansi must be a bool"
     assert isinstance(config.get("engine", {}).get("pass_through_on_error", True), bool), "pass_through_on_error must be a bool"
+
+    max_bytes = config.get("engine", {}).get("max_output_bytes", 10_485_760)
+    assert isinstance(max_bytes, int) and max_bytes > 0, "max_output_bytes must be a positive integer"
 
     patterns = config.get("safety", {}).get("security_patterns", [])
     assert isinstance(patterns, list), "security_patterns must be a list"
     assert all(isinstance(p, str) for p in patterns), "security_patterns must be a list of strings"
+
+    # GAP-8: Validate per-command contract entries
+    commands = config.get("commands", {})
+    assert isinstance(commands, dict), "commands must be a mapping"
+    for cmd, overrides in commands.items():
+        assert isinstance(overrides, dict), f"commands.{cmd!r} must be a mapping"
+        for field in ("always_keep", "always_strip"):
+            if field in overrides:
+                assert isinstance(overrides[field], list), f"commands.{cmd!r}.{field} must be a list"
+                assert all(isinstance(p, str) for p in overrides[field]), (
+                    f"commands.{cmd!r}.{field} must be a list of strings"
+                )
 
 def get_config(workspace: str) -> dict[str, Any]:
     global _CONFIG_CACHE

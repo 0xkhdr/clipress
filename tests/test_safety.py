@@ -70,3 +70,23 @@ def test_error_pass_through_off(workspace, config):
     output = "Traceback (most recent call last):\n  File \"test.py\", line 1\n    raise Exception()\nException: Failed\n" * 10
     should_skip, reason = safety.should_skip("failing_cmd", output, workspace, config)
     assert should_skip is False
+
+
+def test_blocks_binary_beyond_512_bytes(workspace, config):
+    """GAP-3: Binary detection must catch non-printable bytes beyond the old 512-byte limit."""
+    # First 512 chars are clean text, binary starts at byte 513
+    clean_prefix = "a" * 513
+    binary_suffix = "\x00" * 50  # null bytes well past the old threshold
+    output = clean_prefix + binary_suffix
+    should_skip, reason = safety.should_skip("cat file.bin", output, workspace, config)
+    assert should_skip is True
+    assert "binary" in reason
+
+
+def test_blocks_printenv_command(workspace, config):
+    """GAP-4: printenv, env, declare, set must be blocked regardless of output content."""
+    output = "PATH=/usr/bin:/bin\nHOME=/root\n" * 20
+    for cmd in ["printenv", "env", "declare -p", "set"]:
+        should_skip_result, reason = safety.should_skip(cmd, output, workspace, config)
+        assert should_skip_result is True, f"{cmd!r} should be blocked"
+        assert "security" in reason

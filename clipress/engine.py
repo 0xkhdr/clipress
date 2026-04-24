@@ -1,5 +1,6 @@
 import sys
 import collections
+import threading
 from pathlib import Path
 from clipress.config import get_config, build_seed_registry
 from clipress.safety import should_skip
@@ -13,12 +14,22 @@ from typing import Any
 # Hot cache
 _HOT_CACHE: collections.OrderedDict[str, Any] = collections.OrderedDict()
 _HOT_CACHE_MAX_SIZE = 100
+_HOT_CACHE_LOCK = threading.Lock()
 
 def compress(command: str, output: str, workspace: str) -> str:
     try:
         # Load config
         config = get_config(workspace)
         show_metrics = config.get("engine", {}).get("show_metrics", False)
+
+        # GAP-1: Output size guard — prevents OOM on huge outputs
+        max_bytes = config.get("engine", {}).get("max_output_bytes", 10_485_760)  # 10 MB default
+        if len(output.encode("utf-8", errors="replace")) > max_bytes:
+            print(
+                f"clipress: output exceeds max_output_bytes ({max_bytes}), passing through",
+                file=sys.stderr,
+            )
+            return output
 
         # PRE-PROCESSING: Global ANSI Stripping
         if config.get("engine", {}).get("strip_ansi", True):
@@ -33,13 +44,15 @@ def compress(command: str, output: str, workspace: str) -> str:
 
         normalized_cmd = " ".join(command.strip().split())
 
-        # Check Hot Cache
+        # GAP-5: Thread-safe hot cache lookup
         entry = None
-        if normalized_cmd in _HOT_CACHE:
-            entry = _HOT_CACHE[normalized_cmd]
-            # update LRU
-            _HOT_CACHE.move_to_end(normalized_cmd)
-        else:
+        learner = None  # single Learner instance for this call — avoids double disk reads
+        with _HOT_CACHE_LOCK:
+            if normalized_cmd in _HOT_CACHE:
+                entry = _HOT_CACHE[normalized_cmd]
+                _HOT_CACHE.move_to_end(normalized_cmd)
+
+        if entry is None:
             seeds = build_seed_registry(workspace)
             matched_seed = None
             # Layer 0a: Seeds
@@ -58,7 +71,7 @@ def compress(command: str, output: str, workspace: str) -> str:
                     "user_override": matched_seed.get("user_override", False)
                 }
             else:
-                learner = Learner(workspace)
+                learner = Learner(workspace)  # instantiated once here
                 # Layer 0b: Workspace Registry
                 learned_entry = learner.lookup(normalized_cmd)
                 if learned_entry:
@@ -74,9 +87,10 @@ def compress(command: str, output: str, workspace: str) -> str:
                     }
 
             if entry.get("hot") or entry.get("user_override"):
-                if len(_HOT_CACHE) >= _HOT_CACHE_MAX_SIZE:
-                    _HOT_CACHE.popitem(last=False)
-                _HOT_CACHE[normalized_cmd] = entry
+                with _HOT_CACHE_LOCK:
+                    if len(_HOT_CACHE) >= _HOT_CACHE_MAX_SIZE:
+                        _HOT_CACHE.popitem(last=False)
+                    _HOT_CACHE[normalized_cmd] = entry
 
         # Layer 2: Apply strategy
         strategy = get_strategy(entry["strategy"])
@@ -105,6 +119,11 @@ def compress(command: str, output: str, workspace: str) -> str:
         if show_metrics or not entry.get("hot"):
             compressed_tokens = count_tokens(compressed)
 
+        # Size-regression guard: if strategy made output larger, return original
+        if raw_tokens > 0 and compressed_tokens > raw_tokens:
+            compressed = output
+            compressed_tokens = raw_tokens
+
         if show_metrics:
             saved = max(0, raw_tokens - compressed_tokens)
             if saved > 0:
@@ -113,9 +132,10 @@ def compress(command: str, output: str, workspace: str) -> str:
                     file=sys.stderr,
                 )
 
-        # POST: Learner
-        if not entry.get("source") == "seed":
-            learner = Learner(workspace) # Make sure learner is instantiated
+        # POST: Learner — reuse existing instance; lazy-create only for hot-cache entries
+        if entry.get("source") != "seed":
+            if learner is None:
+                learner = Learner(workspace)  # hot-cache "learned" entries need a learner too
             learner.record(
                 normalized_cmd, entry["strategy"], raw_tokens, compressed_tokens
             )

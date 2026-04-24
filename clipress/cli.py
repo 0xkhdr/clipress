@@ -29,18 +29,63 @@ def status():
 
 @main.command()
 def init():
-    """Initializes .compressor/ in current directory"""
+    """Initializes .compressor/ in current directory with a full scaffold"""
     workspace = os.getcwd()
     comp_dir = Path(workspace) / ".compressor"
     comp_dir.mkdir(mode=0o700, exist_ok=True)
 
+    # Create config.yaml with commented examples
     config_path = comp_dir / "config.yaml"
     if not config_path.exists():
-        # Just write empty defaults for user to override
         config_path.write_text(
-            "# clipress workspace configuration\nengine:\n  show_metrics: true\n"
+            "# clipress workspace configuration\n"
+            "# See README for full schema.\n"
+            "engine:\n"
+            "  show_metrics: true\n"
+            "#  max_output_bytes: 10485760  # 10 MB\n"
+            "#  pass_through_on_error: true\n"
+            "\n"
+            "# Per-command output contracts\n"
+            "# commands:\n"
+            "#   \"git status\":\n"
+            "#     always_keep:\n"
+            "#       - \"^On branch\"\n"
         )
-        click.echo("Created .compressor/config.yaml")
+        click.echo("  Created .compressor/config.yaml")
+
+    # Create extensions directory for custom seed rules
+    ext_dir = comp_dir / "extensions"
+    ext_dir.mkdir(exist_ok=True)
+    example_ext = ext_dir / "example.yaml.disabled"
+    if not example_ext.exists():
+        example_ext.write_text(
+            "# Rename to .yaml to activate. User extensions override built-in seeds.\n"
+            "# Format: command_prefix:\n"
+            "#   strategy: list|diff|test|progress|table|keyvalue|error|generic\n"
+            "#   params:\n"
+            "#     max_lines: 30\n"
+            "\n"
+            "# Example:\n"
+            "# \"kubectl get pods\":\n"
+            "#   strategy: table\n"
+            "#   params:\n"
+            "#     max_rows: 20\n"
+        )
+        click.echo("  Created .compressor/extensions/example.yaml.disabled")
+
+    # Create .compressor-ignore with examples
+    ignore_path = comp_dir / ".compressor-ignore"
+    if not ignore_path.exists():
+        ignore_path.write_text(
+            "# Commands listed here are passed through without compression.\n"
+            "# One command prefix per line. Lines starting with # are comments.\n"
+            "#\n"
+            "# Examples:\n"
+            "# kubectl exec\n"
+            "# psql\n"
+            "# mysql\n"
+        )
+        click.echo("  Created .compressor/.compressor-ignore")
 
     click.echo("Initialized clipress in this directory.")
 
@@ -133,7 +178,11 @@ def error_passthrough(state):
     
     with open(config_path, "w", encoding="utf-8") as f:
         yaml.dump(config, f)
-        
+
+    # GAP-7: Invalidate cached config so the new value takes effect immediately
+    from clipress.config import clear_cache
+    clear_cache()
+
     click.echo(f"Set pass_through_on_error to {state == 'on'} in {config_path}")
 
 

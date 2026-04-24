@@ -4,7 +4,6 @@ from .base import BaseStrategy
 
 
 class TestStrategy(BaseStrategy):
-    _ANSI_ESCAPE = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
     _PASS = re.compile(r"\b(PASSED|ok|✓)\b")
     _FAIL = re.compile(r"\b(FAILED|FAIL|ERROR|✗)\b")
     _SUMMARY = re.compile(r"==+|---|total:|passed:|failed:")
@@ -18,8 +17,7 @@ class TestStrategy(BaseStrategy):
         max_traceback = params.get("max_traceback_lines", 8)
         keep = params.get("keep", "failed_only")  # usually failed_only
 
-        clean_output = self._ANSI_ESCAPE.sub("", output)
-        original_lines = clean_output.splitlines()
+        original_lines = output.splitlines()
 
         lines = []
         in_traceback = False

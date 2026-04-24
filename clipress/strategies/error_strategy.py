@@ -1,10 +1,8 @@
-import re
 from typing import Any
 from .base import BaseStrategy
 
 
 class ErrorStrategy(BaseStrategy):
-    _ANSI_ESCAPE = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
 
     def compress(
         self, output: str, params: dict[str, Any], contract: dict[str, Any]
@@ -15,8 +13,7 @@ class ErrorStrategy(BaseStrategy):
         max_traceback = params.get("max_traceback_lines", 10)
         strip_stdlib = params.get("strip_stdlib_frames", True)
 
-        clean_output = self._ANSI_ESCAPE.sub("", output)
-        original_lines = clean_output.splitlines()
+        original_lines = output.splitlines()
 
         lines = []
         frames_kept = 0

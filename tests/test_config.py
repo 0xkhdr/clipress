@@ -123,3 +123,20 @@ def test_per_command_contracts_merged(tmp_path):
     c = config.get_config(str(tmp_path))
     assert "GLOBAL_KEEP" in c["contracts"]["global"]["always_keep"]
     assert "GIT_KEEP" in c["commands"]["git status"]["always_keep"]
+
+
+def test_invalid_max_output_bytes_falls_back_to_defaults(tmp_path, capsys):
+    config.clear_cache()
+    comp_dir = tmp_path / ".compressor"
+    comp_dir.mkdir()
+    # Negative value should fail validation
+    user_cfg = {"engine": {"max_output_bytes": -1}}
+    with open(comp_dir / "config.yaml", "w") as f:
+        yaml.dump(user_cfg, f)
+
+    c = config.get_config(str(tmp_path))
+    # Should fallback to default (10 MB)
+    assert c["engine"]["max_output_bytes"] == 10485760
+
+    captured = capsys.readouterr()
+    assert "clipress: invalid user config" in captured.err

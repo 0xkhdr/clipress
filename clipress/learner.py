@@ -1,5 +1,6 @@
 import os
 import json
+import fcntl
 import threading
 from pathlib import Path
 from datetime import datetime, timezone
@@ -44,11 +45,16 @@ class Learner:
     def _save(self) -> None:
         try:
             self.dir_path.mkdir(mode=0o700, parents=True, exist_ok=True)
-            tmp_path = self.path.with_suffix(".tmp")
-            with open(tmp_path, "w", encoding="utf-8") as f:
-                os.chmod(tmp_path, 0o600)
-                json.dump(self.data, f, indent=2)
-            tmp_path.replace(self.path)
+            # GAP-2: Exclusive file lock prevents concurrent writers from corrupting registry.json
+            lock_path = self.dir_path / "registry.lock"
+            with open(lock_path, "w") as lock_file:
+                fcntl.flock(lock_file, fcntl.LOCK_EX)
+                tmp_path = self.path.with_suffix(".tmp")
+                with open(tmp_path, "w", encoding="utf-8") as f:
+                    os.chmod(tmp_path, 0o600)
+                    json.dump(self.data, f, indent=2)
+                tmp_path.replace(self.path)
+                # lock released on context-manager exit
         except Exception:
             pass  # No-op on error
 

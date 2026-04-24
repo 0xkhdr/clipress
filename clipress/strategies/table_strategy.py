@@ -4,7 +4,6 @@ from .base import BaseStrategy
 
 
 class TableStrategy(BaseStrategy):
-    _ANSI_ESCAPE = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
     _TABLE_SEP = re.compile(r"^[-\s|+]+$")
 
     def compress(
@@ -17,8 +16,7 @@ class TableStrategy(BaseStrategy):
         max_columns = params.get("max_columns", 5)
         max_cell_length = params.get("max_cell_length", 40)
 
-        clean_output = self._ANSI_ESCAPE.sub("", output)
-        original_lines = clean_output.splitlines()
+        original_lines = output.splitlines()
 
         lines = []
 
