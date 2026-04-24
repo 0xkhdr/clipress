@@ -9,10 +9,13 @@ python3 --version | grep -E "3\.(1[1-9]|[2-9][0-9])" > /dev/null || {
     exit 1
 }
 
-if command -v pipx &> /dev/null; then
-    pipx install .
+if command -v pipx &>/dev/null; then
+    pipx install clipress
+elif command -v pip &>/dev/null; then
+    pip install clipress
 else
-    pip install .
+    echo "Error: pip or pipx required."
+    exit 1
 fi
 
 # Initialize in current directory

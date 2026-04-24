@@ -1,46 +1,72 @@
+import os
+import pytest
 from clipress import safety
 
+@pytest.fixture
+def workspace(tmp_path):
+    return str(tmp_path)
 
-def test_blocks_env_file_command():
-    should_skip, reason = safety.should_skip("cat .env", "FOO=bar")
+@pytest.fixture
+def config():
+    return {"engine": {"min_lines_to_compress": 15}, "safety": {"binary_non_ascii_ratio": 0.3}}
+
+def test_blocks_env_file_command(workspace, config):
+    should_skip, reason = safety.should_skip("cat .env", "FOO=bar\n" * 20, workspace, config)
     assert should_skip is True
     assert "security sensitive" in reason
 
-
-def test_blocks_ssh_key_read():
-    should_skip, reason = safety.should_skip("cat ~/.ssh/id_rsa", "...")
+def test_blocks_ssh_key_read(workspace, config):
+    should_skip, reason = safety.should_skip("cat ~/.ssh/id_rsa", "..." + "\n" * 20, workspace, config)
     assert should_skip is True
 
-
-def test_blocks_binary_output():
-    should_skip, reason = safety.should_skip("cat file.bin", "Hello\x00World")
+def test_blocks_binary_output(workspace, config):
+    should_skip, reason = safety.should_skip("cat file.bin", "Hello\x00World" + "\n" * 20, workspace, config)
     assert should_skip is True
     assert "binary" in reason
 
-
-def test_passes_clean_git_status():
+def test_passes_clean_git_status(workspace, config):
     output = "On branch main\n" * 20
-    should_skip, reason = safety.should_skip("git status", output)
+    should_skip, reason = safety.should_skip("git status", output, workspace, config)
     assert should_skip is False
     assert reason == ""
 
-
-def test_passes_minimal_output_flag():
-    should_skip, reason = safety.should_skip("ls", "file1\nfile2")
+def test_passes_minimal_output_flag(workspace, config):
+    should_skip, reason = safety.should_skip("ls", "file1\nfile2", workspace, config)
     assert should_skip is True
     assert "minimal" in reason
 
-
-def test_detects_bearer_token_in_output():
+def test_detects_bearer_token_in_output(workspace, config):
     output = "Response: Bearer abcdef12345" + ("\n" * 20)
-    should_skip, reason = safety.should_skip("curl http://api", output)
+    should_skip, reason = safety.should_skip("curl http://api", output, workspace, config)
     assert should_skip is True
     assert "security" in reason
 
-
-def test_emits_to_stderr_not_stdout():
-    # Stderr emission is handled by the caller, so we verify reason doesn't leak secrets
-    output = "DATABASE_URL=postgres://user:P4ssw0rd@host/db"
-    should_skip, reason = safety.should_skip("cat config", output)
+def test_emits_to_stderr_not_stdout(workspace, config):
+    output = "DATABASE_URL=postgres://user:password@host/db" + ("\n" * 20)
+    should_skip, reason = safety.should_skip("cat config", output, workspace, config)
     assert should_skip is True
-    assert "P4ssw0rd" not in reason
+    assert "password" not in reason
+
+def test_respects_user_blocklist(workspace, config):
+    comp_dir = os.path.join(workspace, ".compressor")
+    os.makedirs(comp_dir, exist_ok=True)
+    with open(os.path.join(comp_dir, ".compressor-ignore"), "w") as f:
+        f.write("blocked_cmd\n# comment\n")
+    
+    output = "line\n" * 20
+    should_skip, reason = safety.should_skip("blocked_cmd --flag", output, workspace, config)
+    assert should_skip is True
+    assert "blocklist" in reason
+
+def test_error_pass_through_when_configured(workspace, config):
+    config["engine"]["pass_through_on_error"] = True
+    output = "Traceback (most recent call last):\n  File \"test.py\", line 1\n    raise Exception()\nException: Failed\n" * 10
+    should_skip, reason = safety.should_skip("failing_cmd", output, workspace, config)
+    assert should_skip is True
+    assert "error output pass-through" in reason
+
+def test_error_pass_through_off(workspace, config):
+    config["engine"]["pass_through_on_error"] = False
+    output = "Traceback (most recent call last):\n  File \"test.py\", line 1\n    raise Exception()\nException: Failed\n" * 10
+    should_skip, reason = safety.should_skip("failing_cmd", output, workspace, config)
+    assert should_skip is False

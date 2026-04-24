@@ -45,9 +45,9 @@ def main():
 
     compressed = compress(command, output, workspace)
 
+    # Always output JSON envelope
     result = {"type": "tool_result", "content": compressed}
-
-    print(json.dumps(result), end="")
+    print(json.dumps(result))
     sys.exit(0)
 
 

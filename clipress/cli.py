@@ -109,5 +109,33 @@ def report():
     click.echo(format_report(learner.summary()))
 
 
+@main.command(name="error-passthrough")
+@click.argument("state", type=click.Choice(["on", "off"]))
+def error_passthrough(state):
+    """Toggles error pass-through for the current workspace"""
+    workspace = os.getcwd()
+    comp_dir = Path(workspace) / ".compressor"
+    comp_dir.mkdir(mode=0o700, exist_ok=True)
+    config_path = comp_dir / "config.yaml"
+    
+    from ruamel.yaml import YAML
+    yaml = YAML() # For round-trip writing
+    
+    config = {}
+    if config_path.exists():
+        with open(config_path, "r", encoding="utf-8") as f:
+            config = yaml.load(f) or {}
+            
+    if "engine" not in config:
+        config["engine"] = {}
+        
+    config["engine"]["pass_through_on_error"] = (state == "on")
+    
+    with open(config_path, "w", encoding="utf-8") as f:
+        yaml.dump(config, f)
+        
+    click.echo(f"Set pass_through_on_error to {state == 'on'} in {config_path}")
+
+
 if __name__ == "__main__":
     main()

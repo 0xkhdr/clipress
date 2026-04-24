@@ -60,7 +60,7 @@ class Learner:
             entry = self.data["entries"].get(command)
             if not entry:
                 return None
-            if entry.get("confidence", 0) >= HOT_THRESHOLD:
+            if entry.get("user_override") or entry.get("confidence", 0) >= HOT_THRESHOLD:
                 return entry
             return None
         except Exception:

@@ -28,14 +28,17 @@ def test_safety_gate_runs_before_compression(capsys):
     assert "clipress: skipped [security sensitive content detected]" in captured.err
 
 
+import time
+
 def test_contract_always_keep_survives_compression(tmp_path):
     # Configure workspace contract
     d = tmp_path / ".compressor"
     d.mkdir()
     (d / "config.yaml").write_text("""
 contracts:
-  always_keep:
-    - "CRITICAL_LINE"
+  global:
+    always_keep:
+      - "CRITICAL_LINE"
 """)
     output = "line 1\nCRITICAL_LINE\n" + ("line\n" * 50)
     res = compress("ls", output, str(tmp_path))
@@ -47,9 +50,36 @@ def test_contract_always_strip_applied_last(tmp_path):
     d.mkdir()
     (d / "config.yaml").write_text("""
 contracts:
-  always_strip:
-    - "STRIP_ME"
+  global:
+    always_strip:
+      - "STRIP_ME"
 """)
     output = "line 1\nSTRIP_ME\n" + ("line\n" * 50)
     res = compress("ls", output, str(tmp_path))
     assert "STRIP_ME" not in res
+
+def test_global_ansi_stripping(tmp_path):
+    d = tmp_path / ".compressor"
+    d.mkdir()
+    (d / "config.yaml").write_text("""
+engine:
+  strip_ansi: true
+""")
+    output = "\x1b[31mRed text\x1b[0m\n" * 50
+    res = compress("ls", output, str(tmp_path))
+    assert "\x1b[31m" not in res
+
+def test_hot_path_under_10ms(tmp_path):
+    # Warm up cache
+    output = "line\n" * 1000
+    compress("ls", output, str(tmp_path))
+    compress("ls", output, str(tmp_path))
+    
+    # Measure
+    start = time.time()
+    compress("ls", output, str(tmp_path))
+    duration = time.time() - start
+    
+    # Target < 10ms (0.01s)
+    # Using 0.05s as safety margin for CI environments, but typically < 0.01s
+    assert duration < 0.05
