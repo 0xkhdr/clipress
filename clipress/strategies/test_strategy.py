@@ -6,7 +6,9 @@ from .base import BaseStrategy
 class TestStrategy(BaseStrategy):
     _PASS = re.compile(r"\b(PASSED|ok|✓)\b")
     _FAIL = re.compile(r"\b(FAILED|FAIL|ERROR|✗)\b")
-    _SUMMARY = re.compile(r"==+|---|total:|passed:|failed:")
+    # Anchored separator lines (=== or ---) plus explicit total/passed/failed counters.
+    # Anchoring prevents collisions with diff hunk headers like "--- a/file.txt".
+    _SUMMARY = re.compile(r"^={3,}|^-{3,}\s*$|\btotal:|\bpassed:|\bfailed:", re.IGNORECASE)
 
     def compress(
         self, output: str, params: dict[str, Any], contract: dict[str, Any]

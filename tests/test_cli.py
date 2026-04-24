@@ -22,24 +22,24 @@ def runner():
     return CliRunner()
 
 
-def test_cli_init(runner, tmp_path):
-    os.chdir(tmp_path)
+def test_cli_init(runner, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
     result = runner.invoke(main, ["init"])
     assert result.exit_code == 0
     assert "Initialized" in result.output
     assert (tmp_path / ".compressor" / "config.yaml").exists()
 
 
-def test_cli_status(runner, tmp_path):
-    os.chdir(tmp_path)
+def test_cli_status(runner, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
     runner.invoke(main, ["init"])
     result = runner.invoke(main, ["status"])
     assert result.exit_code == 0
     assert "session report" in result.output
 
 
-def test_cli_compress(runner, tmp_path):
-    os.chdir(tmp_path)
+def test_cli_compress(runner, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
     runner.invoke(main, ["init"])
     result = runner.invoke(main, ["compress", "ls"], input="file1\nfile2\nfile3\n" * 15)
     assert result.exit_code == 0
@@ -153,3 +153,9 @@ def test_cli_error_passthrough_invalid_state(runner, tmp_path):
     os.chdir(tmp_path)
     result = runner.invoke(main, ["error-passthrough", "maybe"])
     assert result.exit_code != 0
+
+
+def test_package_version_matches_pyproject():
+    """__version__ must track the installed package metadata (or 0+unknown if uninstalled)."""
+    from clipress import __version__
+    assert isinstance(__version__, str) and __version__

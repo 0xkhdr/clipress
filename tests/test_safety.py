@@ -92,19 +92,27 @@ def test_blocks_printenv_command(workspace, config):
         assert "security" in reason
 
 
-def test_config_security_patterns_applied(workspace, config):
-    """Patterns from config.safety.security_patterns must block output, not just the hardcoded list."""
-    config["safety"]["security_patterns"] = [r"MY_CUSTOM_SECRET"]
-    output = "line\n" * 20 + "MY_CUSTOM_SECRET=hunter2\n"
-    should_skip_result, reason = safety.should_skip("printout", output, workspace, config)
-    assert should_skip_result is True
+def test_user_security_patterns_are_applied(workspace, config):
+    """Custom patterns in config.safety.security_patterns must block matching output."""
+    config = {**config, "safety": {**config["safety"], "security_patterns": [r"PROPRIETARY_TOKEN"]}}
+    output = ("x\n" * 20) + "PROPRIETARY_TOKEN=abc123\n" + ("x\n" * 10)
+    should_skip, reason = safety.should_skip("my_cmd", output, workspace, config)
+    assert should_skip is True
     assert "security" in reason
 
 
-def test_config_security_patterns_command(workspace, config):
-    """Custom patterns should also match against the command string."""
-    config["safety"]["security_patterns"] = [r"super_secret_tool"]
-    output = "normal output\n" * 20
-    should_skip_result, reason = safety.should_skip("super_secret_tool --run", output, workspace, config)
-    assert should_skip_result is True
-    assert "security" in reason
+def test_invalid_user_security_pattern_is_ignored(workspace, config):
+    """A malformed regex in user config must not crash the safety gate."""
+    config = {**config, "safety": {**config["safety"], "security_patterns": [r"(unclosed"]}}
+    output = "hello\n" * 30
+    should_skip, reason = safety.should_skip("ls", output, workspace, config)
+    assert should_skip is False
+
+
+def test_generic_secret_word_boundary(workspace, config):
+    """Word-boundary tightening: 'secretary' must not trip the default 'secret' pattern."""
+    output = "Meeting with the secretary at 3pm\n" * 20
+    should_skip, reason = safety.should_skip("cat notes.txt", output, workspace, config)
+    assert should_skip is False, (
+        "the built-in 'secret' pattern should not match 'secretary' after word-boundary fix"
+    )

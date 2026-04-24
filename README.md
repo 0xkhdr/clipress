@@ -10,8 +10,10 @@ A Python-based CLI proxy that intercepts bash command output before it reaches a
 
 ```bash
 pip install clipress
+# Or, from a source checkout:
+./install.sh            # prefers pipx, falls back to pip, then runs `clipress init`
 
-# Initialize a workspace
+# Initialize a workspace (only if you didn't use install.sh)
 cd your-project
 clipress init
 

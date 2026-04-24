@@ -1,6 +1,6 @@
 [project]
 name = "clipress"
-version = "1.2.1"
+version = "1.2.2"
 description = "Universal CLI output compressor for AI agents"
 readme = "README.md"
 license = { text = "MIT" }

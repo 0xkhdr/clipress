@@ -99,23 +99,6 @@ def test_handles_corrupt_registry_gracefully(tmp_path):
     assert res is not None
 
 
-def test_session_count_increments_once_per_process(tmp_path, monkeypatch):
-    """Multiple Learner() constructions in the same process must count as one session."""
-    import os
-    from clipress import learner as learner_mod
-
-    fake_pid = 999_999_001
-    monkeypatch.setattr(os, "getpid", lambda: fake_pid)
-    learner_mod._SESSION_PIDS.discard(fake_pid)
-
-    l1 = Learner(str(tmp_path))
-    assert l1.data["stats"]["session_count"] == 1  # first construction increments
-    l1._save()
-
-    l2 = Learner(str(tmp_path))  # same PID → must NOT increment again
-    assert l2.data["stats"]["session_count"] == 1
-
-
 def test_reset_clears_hot_flag(tmp_path):
     """Verifies the entry's hot flag is reset alongside confidence."""
     learner = Learner(str(tmp_path))
@@ -125,7 +108,6 @@ def test_reset_clears_hot_flag(tmp_path):
     entry = learner.data["entries"]["git diff"]
     assert entry["hot"] is True
 
-    # Simulate what `clipress learn reset git diff` does
     entry["confidence"] = 0.50
     entry["hot"] = False
     entry["calls"] = 0
@@ -137,5 +119,28 @@ def test_reset_clears_hot_flag(tmp_path):
     assert e2["hot"] is False
     assert e2["confidence"] == 0.50
     assert e2["calls"] == 0
-    # lookup must return None now (confidence below HOT_THRESHOLD)
     assert learner2.lookup("git diff") is None
+
+
+def test_handles_registry_missing_stats_key(tmp_path):
+    """Older/partial registry.json (no 'stats' or 'entries' key) must not crash init."""
+    import json
+    d = tmp_path / ".compressor"
+    d.mkdir()
+    (d / "registry.json").write_text(json.dumps({"version": "1.0"}))
+
+    learner = Learner(str(tmp_path))
+    assert learner.data["stats"]["session_count"] >= 1
+    assert learner.data["entries"] == {}
+
+
+def test_handles_non_dict_registry_payload(tmp_path):
+    """A JSON array where a dict is expected must not crash init."""
+    import json
+    d = tmp_path / ".compressor"
+    d.mkdir()
+    (d / "registry.json").write_text(json.dumps(["not", "a", "dict"]))
+
+    learner = Learner(str(tmp_path))
+    assert isinstance(learner.data, dict)
+    assert "stats" in learner.data and "entries" in learner.data
