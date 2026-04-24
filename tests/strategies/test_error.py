@@ -16,3 +16,20 @@ def test_error_strategy_strip_stdlib():
     compressed = strategy.compress(output, {"strip_stdlib_frames": True}, {})
     assert "my_code.py" in compressed
     assert "/usr/lib/python" not in compressed
+
+
+def test_error_strategy_no_strip_stdlib():
+    """With strip_stdlib_frames=False, stdlib frames must be preserved."""
+    strategy = ErrorStrategy()
+    output = (
+        'Traceback (most recent call last):\n'
+        '  File "/usr/lib/python/site-packages/lib.py", line 10\n'
+        '    do_thing()\n'
+        '  File "app.py", line 5\n'
+        '    run()\n'
+        'RuntimeError: oops'
+    )
+    compressed = strategy.compress(output, {"strip_stdlib_frames": False}, {})
+    assert "site-packages/lib.py" in compressed
+    assert "app.py" in compressed
+    assert "RuntimeError: oops" in compressed

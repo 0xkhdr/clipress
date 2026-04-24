@@ -46,24 +46,28 @@ def load_blocklist(workspace: str) -> list[str]:
     return blocklist
 
 
-def is_security_sensitive(command: str, output: str) -> bool:
+def is_security_sensitive(
+    command: str,
+    output: str,
+    extra_patterns: list[re.Pattern] | None = None,
+) -> bool:
     """
     Returns True if command or output contains security patterns.
     Checks command path AND output content.
     Also blocks environment-dumping commands (printenv, declare, env, set).
+    extra_patterns: additional compiled patterns from user config.
     """
-    # Block environment-dumping commands unconditionally
     cmd_base = command.strip().split()[0] if command.strip() else ""
     if cmd_base in SENSITIVE_ENV_COMMANDS:
         return True
 
-    # Check command against security patterns
-    for p in _COMPILED_PATTERNS:
+    all_patterns = _COMPILED_PATTERNS + (extra_patterns or [])
+
+    for p in all_patterns:
         if p.search(command):
             return True
 
-    # Check output content against security patterns
-    for p in _COMPILED_PATTERNS:
+    for p in all_patterns:
         if p.search(output):
             return True
 
@@ -111,7 +115,9 @@ def should_skip(command: str, output: str, workspace: str, config: dict) -> tupl
         if cmd_normalized.startswith(prefix):
             return True, "command in user blocklist"
 
-    if is_security_sensitive(command, output):
+    config_patterns = config.get("safety", {}).get("security_patterns", [])
+    extra = [re.compile(p, re.IGNORECASE) for p in config_patterns] if config_patterns else None
+    if is_security_sensitive(command, output, extra_patterns=extra):
         return True, "security sensitive content detected"
 
     non_ascii_ratio = config.get("safety", {}).get("binary_non_ascii_ratio", 0.3)

@@ -90,3 +90,21 @@ def test_blocks_printenv_command(workspace, config):
         should_skip_result, reason = safety.should_skip(cmd, output, workspace, config)
         assert should_skip_result is True, f"{cmd!r} should be blocked"
         assert "security" in reason
+
+
+def test_config_security_patterns_applied(workspace, config):
+    """Patterns from config.safety.security_patterns must block output, not just the hardcoded list."""
+    config["safety"]["security_patterns"] = [r"MY_CUSTOM_SECRET"]
+    output = "line\n" * 20 + "MY_CUSTOM_SECRET=hunter2\n"
+    should_skip_result, reason = safety.should_skip("printout", output, workspace, config)
+    assert should_skip_result is True
+    assert "security" in reason
+
+
+def test_config_security_patterns_command(workspace, config):
+    """Custom patterns should also match against the command string."""
+    config["safety"]["security_patterns"] = [r"super_secret_tool"]
+    output = "normal output\n" * 20
+    should_skip_result, reason = safety.should_skip("super_secret_tool --run", output, workspace, config)
+    assert should_skip_result is True
+    assert "security" in reason

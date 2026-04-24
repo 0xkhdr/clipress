@@ -25,9 +25,18 @@ def test_list_strategy_group_by_dir():
 def test_list_strategy_contract():
     strategy = ListStrategy()
     output = "\n".join([f"item_{i}" for i in range(100)])
-    # Even if omitted, always_keep should restore it
     contract = {"always_keep": [r"item_50"]}
     compressed = strategy.compress(
         output, {"max_lines": 30, "head_lines": 20, "tail_lines": 5}, contract
     )
     assert "item_50" in compressed
+
+
+def test_list_strategy_dedup():
+    strategy = ListStrategy()
+    output = "\n".join(["same_item"] * 50 + ["unique_item"])
+    compressed = strategy.compress(output, {"dedup": True}, {})
+    assert "repeated 50x" in compressed
+    assert "unique_item" in compressed
+    # Should not have 50 separate same_item lines
+    assert compressed.count("same_item") == 1

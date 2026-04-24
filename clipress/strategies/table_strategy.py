@@ -53,23 +53,19 @@ class TableStrategy(BaseStrategy):
             if line.strip():
                 row_count += 1
                 if row_count <= max_rows:
-                    # Truncate long cells (simplistic regex split by 2+ spaces to find cells)
-                    # For simplicity, if we don't properly parse cells, we just truncate the whole line if extremely long
-                    # True cell truncation is complex without knowing exact format, let's split by 2+ spaces
+                    # re.split with a capturing group returns alternating [content, sep, content, sep, ...]
+                    # Even indices (0, 2, 4, ...) are column content; odd indices are separators.
                     parts = re.split(r"(\s{2,}|\t)", line)
                     new_parts = []
                     col_count = 0
-                    for p in parts:
-                        if not p.strip() and p != "":
+                    for i, p in enumerate(parts):
+                        if i % 2 == 1:  # separator — always pass through
                             new_parts.append(p)
-                        else:
+                        else:  # column content
                             col_count += 1
                             if col_count > max_columns:
                                 break
-                            if len(p) > max_cell_length:
-                                new_parts.append(p[: max_cell_length - 3] + "...")
-                            else:
-                                new_parts.append(p)
+                            new_parts.append(p[: max_cell_length - 3] + "..." if len(p) > max_cell_length else p)
 
                     lines.append("".join(new_parts))
                 elif row_count == max_rows + 1:

@@ -3,9 +3,10 @@ import click
 import os
 import json
 from pathlib import Path
+from ruamel.yaml import YAML
 from clipress.engine import compress
 from clipress.learner import Learner
-from clipress.config import get_config
+from clipress.config import get_config, validate_config_file, ConfigError, clear_cache
 from clipress.metrics import format_report
 
 
@@ -112,7 +113,10 @@ def reset(command_name):
     learner = Learner(workspace)
     if command_name:
         if command_name in learner.data["entries"]:
-            learner.data["entries"][command_name]["confidence"] = 0.50
+            entry = learner.data["entries"][command_name]
+            entry["confidence"] = 0.50
+            entry["hot"] = False
+            entry["calls"] = 0
             learner._save()
             click.echo(f"Reset {command_name}")
         else:
@@ -140,10 +144,14 @@ def validate():
     """Validates .compressor/config.yaml against schema"""
     workspace = os.getcwd()
     try:
-        get_config(workspace)
+        validate_config_file(workspace)
         click.echo("Config is valid.")
+    except ConfigError as e:
+        click.echo(f"Config is invalid: {e}", err=False)
+        raise SystemExit(1)
     except Exception as e:
-        click.echo(f"Config is invalid: {e}")
+        click.echo(f"Config error: {e}", err=False)
+        raise SystemExit(1)
 
 
 @main.command()
@@ -163,24 +171,20 @@ def error_passthrough(state):
     comp_dir.mkdir(mode=0o700, exist_ok=True)
     config_path = comp_dir / "config.yaml"
     
-    from ruamel.yaml import YAML
-    yaml = YAML() # For round-trip writing
-    
+    yaml = YAML()  # round-trip writer preserves comments
     config = {}
     if config_path.exists():
         with open(config_path, "r", encoding="utf-8") as f:
             config = yaml.load(f) or {}
-            
+
     if "engine" not in config:
         config["engine"] = {}
-        
+
     config["engine"]["pass_through_on_error"] = (state == "on")
-    
+
     with open(config_path, "w", encoding="utf-8") as f:
         yaml.dump(config, f)
 
-    # GAP-7: Invalidate cached config so the new value takes effect immediately
-    from clipress.config import clear_cache
     clear_cache()
 
     click.echo(f"Set pass_through_on_error to {state == 'on'} in {config_path}")

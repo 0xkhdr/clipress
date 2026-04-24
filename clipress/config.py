@@ -4,6 +4,10 @@ from pathlib import Path
 from typing import Any
 from ruamel.yaml import YAML
 
+
+class ConfigError(ValueError):
+    """Raised when the user's config.yaml fails validation."""
+
 class _YamlWrapper:
     @staticmethod
     def safe_load(stream):
@@ -30,29 +34,32 @@ def load_defaults() -> dict[str, Any]:
         return yaml.safe_load(f)
 
 def _validate(config: dict[str, Any]) -> None:
-    assert config.get("engine", {}).get("min_lines_to_compress", 0) >= 5, "min_lines_to_compress must be >= 5"
-    assert config.get("engine", {}).get("hot_cache_threshold", 0) >= 1, "hot_cache_threshold must be >= 1"
+    def check(condition: bool, msg: str) -> None:
+        if not condition:
+            raise ConfigError(msg)
 
-    assert isinstance(config.get("engine", {}).get("strip_ansi", True), bool), "strip_ansi must be a bool"
-    assert isinstance(config.get("engine", {}).get("pass_through_on_error", True), bool), "pass_through_on_error must be a bool"
+    check(config.get("engine", {}).get("min_lines_to_compress", 0) >= 5, "min_lines_to_compress must be >= 5")
+    check(config.get("engine", {}).get("hot_cache_threshold", 0) >= 1, "hot_cache_threshold must be >= 1")
+    check(isinstance(config.get("engine", {}).get("strip_ansi", True), bool), "strip_ansi must be a bool")
+    check(isinstance(config.get("engine", {}).get("pass_through_on_error", True), bool), "pass_through_on_error must be a bool")
 
     max_bytes = config.get("engine", {}).get("max_output_bytes", 10_485_760)
-    assert isinstance(max_bytes, int) and max_bytes > 0, "max_output_bytes must be a positive integer"
+    check(isinstance(max_bytes, int) and max_bytes > 0, "max_output_bytes must be a positive integer")
 
     patterns = config.get("safety", {}).get("security_patterns", [])
-    assert isinstance(patterns, list), "security_patterns must be a list"
-    assert all(isinstance(p, str) for p in patterns), "security_patterns must be a list of strings"
+    check(isinstance(patterns, list), "security_patterns must be a list")
+    check(all(isinstance(p, str) for p in patterns), "security_patterns must be a list of strings")
 
-    # GAP-8: Validate per-command contract entries
     commands = config.get("commands", {})
-    assert isinstance(commands, dict), "commands must be a mapping"
+    check(isinstance(commands, dict), "commands must be a mapping")
     for cmd, overrides in commands.items():
-        assert isinstance(overrides, dict), f"commands.{cmd!r} must be a mapping"
+        check(isinstance(overrides, dict), f"commands.{cmd!r} must be a mapping")
         for field in ("always_keep", "always_strip"):
             if field in overrides:
-                assert isinstance(overrides[field], list), f"commands.{cmd!r}.{field} must be a list"
-                assert all(isinstance(p, str) for p in overrides[field]), (
-                    f"commands.{cmd!r}.{field} must be a list of strings"
+                check(isinstance(overrides[field], list), f"commands.{cmd!r}.{field} must be a list")
+                check(
+                    all(isinstance(p, str) for p in overrides[field]),
+                    f"commands.{cmd!r}.{field} must be a list of strings",
                 )
 
 def get_config(workspace: str) -> dict[str, Any]:
@@ -122,6 +129,29 @@ def build_seed_registry(workspace: str) -> dict[str, Any]:
     sorted_seeds = dict(sorted(seeds.items(), key=lambda item: len(item[0]), reverse=True))
     _SEED_CACHE[workspace] = sorted_seeds
     return sorted_seeds
+
+def validate_config_file(workspace: str) -> None:
+    """
+    Validate the workspace config.yaml, raising ConfigError on any problem.
+    Used by the `clipress validate` CLI command.
+    """
+    defaults = load_defaults()
+    user_config_path = Path(workspace) / ".compressor" / "config.yaml"
+    if not user_config_path.exists():
+        return  # No user config — defaults are always valid
+
+    with open(user_config_path, "r", encoding="utf-8") as f:
+        user_config = yaml.safe_load(f)
+
+    if user_config is None:
+        return  # Empty file — treat as defaults
+
+    if not isinstance(user_config, dict):
+        raise ConfigError("config.yaml must be a YAML mapping at the top level")
+
+    merged = deep_merge(defaults, user_config)
+    _validate(merged)  # raises ConfigError on failure
+
 
 def clear_cache() -> None:
     global _CONFIG_CACHE

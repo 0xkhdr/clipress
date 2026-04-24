@@ -13,6 +13,10 @@ HOT_THRESHOLD = 0.85
 LOCKED_THRESHOLD = 0.95
 HOT_CALL_THRESHOLD = 10
 
+# Track which OS process IDs have already incremented session_count so that
+# multiple Learner() constructions within one CLI invocation count as one session.
+_SESSION_PIDS: set[int] = set()
+
 
 class Learner:
     def __init__(self, workspace: str):
@@ -30,7 +34,10 @@ class Learner:
             },
         }
         self._load()
-        self.data["stats"]["session_count"] += 1
+        pid = os.getpid()
+        if pid not in _SESSION_PIDS:
+            _SESSION_PIDS.add(pid)
+            self.data["stats"]["session_count"] += 1
 
     def _load(self) -> None:
         if self.path.exists():

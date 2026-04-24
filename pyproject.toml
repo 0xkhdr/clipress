@@ -8,7 +8,6 @@ requires-python = ">=3.11"
 dependencies = [
     "click>=8.0",
     "ruamel.yaml>=0.18",
-    "rich>=13.0",
 ]
 
 [project.optional-dependencies]
@@ -24,3 +23,23 @@ clipress = "clipress.cli:main"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --tb=short"
+
+[tool.coverage.run]
+source = ["clipress"]
+omit = ["clipress/hooks/*"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = ["E501"]

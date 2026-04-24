@@ -28,3 +28,14 @@ def test_progress_strategy_contract():
     compressed = strategy.compress(output, {"keep": "final_line"}, contract)
     assert "Step 1" in compressed
     assert "Success" in compressed
+
+
+def test_progress_strategy_keep_all():
+    """keep='all' retains all non-stripped lines plus errors and final."""
+    strategy = ProgressStrategy()
+    output = "Starting build\nCompiling module A\nCompiling module B\n100%\nBuild done"
+    compressed = strategy.compress(output, {"keep": "all", "strip_percentage": True}, {})
+    assert "Starting build" in compressed
+    assert "Compiling module A" in compressed
+    assert "Build done" in compressed
+    assert "100%" not in compressed
