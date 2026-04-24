@@ -90,3 +90,30 @@ def test_blocks_printenv_command(workspace, config):
         should_skip_result, reason = safety.should_skip(cmd, output, workspace, config)
         assert should_skip_result is True, f"{cmd!r} should be blocked"
         assert "security" in reason
+
+
+def test_user_security_patterns_are_applied(workspace, config):
+    """Custom patterns in config.safety.security_patterns must block matching output."""
+    config = {**config, "safety": {**config["safety"], "security_patterns": [r"PROPRIETARY_TOKEN"]}}
+    output = ("x\n" * 20) + "PROPRIETARY_TOKEN=abc123\n" + ("x\n" * 10)
+    should_skip, reason = safety.should_skip("my_cmd", output, workspace, config)
+    assert should_skip is True
+    assert "security" in reason
+
+
+def test_invalid_user_security_pattern_is_ignored(workspace, config):
+    """A malformed regex in user config must not crash the safety gate."""
+    config = {**config, "safety": {**config["safety"], "security_patterns": [r"(unclosed"]}}
+    output = "hello\n" * 30
+    # Should not raise
+    should_skip, reason = safety.should_skip("ls", output, workspace, config)
+    assert should_skip is False
+
+
+def test_generic_secret_word_boundary(workspace, config):
+    """Word-boundary tightening: 'secretary' must not trip the default 'secret' pattern."""
+    output = "Meeting with the secretary at 3pm\n" * 20
+    should_skip, reason = safety.should_skip("cat notes.txt", output, workspace, config)
+    assert should_skip is False, (
+        "the built-in 'secret' pattern should not match 'secretary' after word-boundary fix"
+    )

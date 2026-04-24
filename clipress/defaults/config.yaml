@@ -11,21 +11,9 @@ engine:
 
 safety:
   binary_non_ascii_ratio: 0.3
-  security_patterns:
-    - '\.env$'
-    - '\.env\.'
-    - 'id_rsa'
-    - 'id_ed25519'
-    - '\.pem$'
-    - '\.key$'
-    - 'credentials'
-    - 'secret'
-    - 'password'
-    - 'api[_-]?key'
-    - 'AWS_SECRET'
-    - 'GITHUB_TOKEN'
-    - 'bearer\s+[a-zA-Z0-9]'
-    - '-----BEGIN'
+  # Extra regex patterns that extend the built-in security block list.
+  # The built-in defaults (secret/password/id_rsa/...) always apply; these are additive.
+  security_patterns: []
 
 contracts:
   global:

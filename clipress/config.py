@@ -55,6 +55,33 @@ def _validate(config: dict[str, Any]) -> None:
                     f"commands.{cmd!r}.{field} must be a list of strings"
                 )
 
+def validate_workspace_config(workspace: str) -> None:
+    """Load defaults + user config and run validation, raising on failure.
+
+    Unlike `get_config`, this does NOT swallow validation errors — it is the
+    honest path used by `clipress validate`.
+    """
+    defaults = load_defaults()
+    workspace_path = Path(workspace)
+    user_config_path = workspace_path / ".compressor" / "config.yaml"
+
+    if not user_config_path.exists():
+        _validate(defaults)
+        return
+
+    with open(user_config_path, "r", encoding="utf-8") as f:
+        user_config = yaml.safe_load(f)
+
+    if user_config is None:
+        _validate(defaults)
+        return
+    if not isinstance(user_config, dict):
+        raise AssertionError("user config must be a mapping at the top level")
+
+    merged = deep_merge(defaults, user_config)
+    _validate(merged)
+
+
 def get_config(workspace: str) -> dict[str, Any]:
     global _CONFIG_CACHE
     if workspace in _CONFIG_CACHE:

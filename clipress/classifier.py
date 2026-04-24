@@ -41,10 +41,11 @@ def detect(output: str) -> tuple[str, float]:
     num_pct_frac = 0
     num_progress_words = 0
     num_test_words = 0
-    num_diff_words = 0
+    num_test_name_hits = 0
     num_at_at = 0
     num_diff_markers = 0
-    num_key_value = 0
+    num_kv1 = 0
+    num_kv2 = 0
     num_error_frames = 0
 
     has_traceback = False
@@ -62,13 +63,15 @@ def detect(output: str) -> tuple[str, float]:
         if _TEST_WORDS.search(line):
             num_test_words += 1
         if "test" in line.lower():
-            num_diff_words += 1  # used for test scoring
+            num_test_name_hits += 1
         if "@@" in line:
             num_at_at += 1
         if "---" in line or "+++" in line:
             num_diff_markers += 1
-        if _KEY_VALUE1.match(line) or _KEY_VALUE2.match(line):
-            num_key_value += 1
+        if _KEY_VALUE1.match(line):
+            num_kv1 += 1
+        if _KEY_VALUE2.match(line):
+            num_kv2 += 1
         if "Traceback" in line:
             has_traceback = True
         if "Exception" in line:
@@ -109,7 +112,7 @@ def detect(output: str) -> tuple[str, float]:
     # test
     if num_test_words > 0:
         scores["test"] += 0.5
-    if num_diff_words / num_lines > 0.2:
+    if num_test_name_hits / num_lines > 0.2:
         scores["test"] += 0.3
     if any("=====" in ln or "====" in ln for ln in lines[-5:]):  # simple summary check
         scores["test"] += 0.2
@@ -140,8 +143,8 @@ def detect(output: str) -> tuple[str, float]:
 
     # keyvalue
     if num_lines > 0:
-        kv1_ratio = sum(1 for ln in lines if _KEY_VALUE1.match(ln)) / num_lines
-        kv2_ratio = sum(1 for ln in lines if _KEY_VALUE2.match(ln)) / num_lines
+        kv1_ratio = num_kv1 / num_lines
+        kv2_ratio = num_kv2 / num_lines
         if kv1_ratio > 0.6:
             scores["keyvalue"] += 0.5
         if kv2_ratio > 0.6:

@@ -97,3 +97,28 @@ def test_handles_corrupt_registry_gracefully(tmp_path):
 
     res = learner.data["entries"]["cmd"]
     assert res is not None
+
+
+def test_handles_registry_missing_stats_key(tmp_path):
+    """Older/partial registry.json (no 'stats' or 'entries' key) must not crash init."""
+    import json
+    d = tmp_path / ".compressor"
+    d.mkdir()
+    (d / "registry.json").write_text(json.dumps({"version": "1.0"}))
+
+    # Must not raise KeyError.
+    learner = Learner(str(tmp_path))
+    assert learner.data["stats"]["session_count"] >= 1
+    assert learner.data["entries"] == {}
+
+
+def test_handles_non_dict_registry_payload(tmp_path):
+    """A JSON array where a dict is expected must not crash init."""
+    import json
+    d = tmp_path / ".compressor"
+    d.mkdir()
+    (d / "registry.json").write_text(json.dumps(["not", "a", "dict"]))
+
+    learner = Learner(str(tmp_path))
+    assert isinstance(learner.data, dict)
+    assert "stats" in learner.data and "entries" in learner.data

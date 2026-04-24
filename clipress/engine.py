@@ -77,7 +77,7 @@ def compress(command: str, output: str, workspace: str) -> str:
                     entry = learned_entry
                 else:
                     # Layer 1: Classifier
-                    shape, confidence = detect(output)
+                    shape, _confidence = detect(output)
                     entry = {
                         "strategy": shape,
                         "params": {},
@@ -114,8 +114,12 @@ def compress(command: str, output: str, workspace: str) -> str:
         # Track tokens after compression
         compressed_tokens = count_tokens(compressed)
 
-        # Size-regression guard: if strategy made output larger, return original
-        if raw_tokens > 0 and compressed_tokens > raw_tokens:
+        # Size-regression guard: if the strategy made output larger in either
+        # byte length or token count, return the original. Byte length catches
+        # whitespace-only bloat that the word-based token heuristic misses.
+        if len(compressed) > len(output) or (
+            raw_tokens > 0 and compressed_tokens > raw_tokens
+        ):
             compressed = output
             compressed_tokens = raw_tokens
 

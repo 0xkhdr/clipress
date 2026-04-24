@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 import fcntl
 import threading
@@ -14,14 +15,49 @@ LOCKED_THRESHOLD = 0.95
 HOT_CALL_THRESHOLD = 10
 
 
+# Single background writer coalesces bursts of record() calls into one save.
+# A per-instance Event is flipped by record() and consumed by a daemon thread
+# that owns the actual disk I/O. This avoids spawning one thread per record.
+class _SaveWorker:
+    def __init__(self, save_fn):
+        self._save_fn = save_fn
+        self._event = threading.Event()
+        self._stop = False
+        self._thread = threading.Thread(target=self._run, daemon=True)
+        self._thread.start()
+
+    def _run(self) -> None:
+        while not self._stop:
+            self._event.wait()
+            if self._stop:
+                return
+            self._event.clear()
+            try:
+                self._save_fn()
+            except Exception as e:
+                if os.environ.get("CLIPRESS_DEBUG"):
+                    print(f"clipress: save failed: {e}", file=sys.stderr)
+
+    def request(self) -> None:
+        self._event.set()
+
+
 class Learner:
     def __init__(self, workspace: str):
         self.workspace = workspace
         self.dir_path = Path(workspace) / ".compressor"
         self.path = self.dir_path / "registry.json"
-        self.data: dict[str, Any] = {
+        self.data: dict[str, Any] = self._default_data()
+        self._load()
+        # Backfill any missing keys introduced by newer versions so older registries load cleanly.
+        self._ensure_shape()
+        self.data["stats"]["session_count"] += 1
+        self._save_worker = _SaveWorker(self._save)
+
+    def _default_data(self) -> dict[str, Any]:
+        return {
             "version": "1.0",
-            "workspace": os.path.abspath(workspace),
+            "workspace": os.path.abspath(self.workspace),
             "entries": {},
             "stats": {
                 "total_commands_learned": 0,
@@ -29,8 +65,23 @@ class Learner:
                 "session_count": 0,
             },
         }
-        self._load()
-        self.data["stats"]["session_count"] += 1
+
+    def _ensure_shape(self) -> None:
+        default = self._default_data()
+        if not isinstance(self.data, dict):
+            self.data = default
+            return
+        for key, value in default.items():
+            if key not in self.data:
+                self.data[key] = value
+        stats = self.data.get("stats")
+        if not isinstance(stats, dict):
+            self.data["stats"] = default["stats"]
+        else:
+            for key, value in default["stats"].items():
+                stats.setdefault(key, value)
+        if not isinstance(self.data.get("entries"), dict):
+            self.data["entries"] = {}
 
     def _load(self) -> None:
         if self.path.exists():
@@ -59,7 +110,7 @@ class Learner:
             pass  # No-op on error
 
     def _async_save(self) -> None:
-        threading.Thread(target=self._save).start()
+        self._save_worker.request()
 
     def lookup(self, command: str) -> dict[str, Any] | None:
         try:
@@ -142,8 +193,9 @@ class Learner:
                     entry["hot"] = True
 
             self._async_save()
-        except Exception:
-            pass
+        except Exception as e:
+            if os.environ.get("CLIPRESS_DEBUG"):
+                print(f"clipress: learner.record failed: {e}", file=sys.stderr)
 
     def summary(self) -> dict[str, Any]:
         hot_commands = [
