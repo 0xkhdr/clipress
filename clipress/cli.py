@@ -1,7 +1,9 @@
 import sys
+import subprocess
 import click
 import os
 import json
+import shutil
 from pathlib import Path
 from ruamel.yaml import YAML
 from clipress.engine import compress
@@ -188,6 +190,45 @@ def error_passthrough(state):
     clear_cache()
 
     click.echo(f"Set pass_through_on_error to {state == 'on'} in {config_path}")
+
+
+@main.command()
+@click.option("--yes", "-y", is_flag=True, help="Skip confirmation prompt")
+@click.option("--keep-data", is_flag=True, help="Keep .clipress/ workspace data")
+def uninstall(yes, keep_data):
+    """Removes .clipress/ workspace data and uninstalls the clipress package"""
+    workspace = os.getcwd()
+    comp_dir = Path(workspace) / ".clipress"
+
+    if not yes:
+        msg = "This will uninstall clipress"
+        if comp_dir.exists() and not keep_data:
+            msg += f" and delete {comp_dir}"
+        click.confirm(f"{msg}. Continue?", abort=True)
+
+    if not keep_data and comp_dir.exists():
+        shutil.rmtree(comp_dir)
+        click.echo(f"Removed {comp_dir}")
+
+    # Try pipx first, fall back to pip
+    if shutil.which("pipx"):
+        result = subprocess.run(["pipx", "uninstall", "clipress"], capture_output=True, text=True)
+        if result.returncode == 0:
+            click.echo(result.stdout.strip() or "Uninstalled clipress via pipx.")
+            return
+        click.echo(result.stderr.strip(), err=True)
+    elif shutil.which("pip"):
+        result = subprocess.run(
+            [sys.executable, "-m", "pip", "uninstall", "-y", "clipress"],
+            capture_output=True, text=True,
+        )
+        if result.returncode == 0:
+            click.echo(result.stdout.strip() or "Uninstalled clipress via pip.")
+            return
+        click.echo(result.stderr.strip(), err=True)
+    else:
+        click.echo("Could not find pipx or pip — remove clipress manually.", err=True)
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

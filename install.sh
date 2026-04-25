@@ -34,8 +34,4 @@ else
     fi
 fi
 
-# Initialize in current directory
-clipress init
-
-echo "Done. clipress is active for this project."
-echo "Run 'clipress status' to verify."
+echo "Done. Run 'clipress init' inside your project directory to set it up."
