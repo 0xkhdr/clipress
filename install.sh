@@ -22,11 +22,12 @@ if [[ -f "$SCRIPT_DIR/pyproject.toml" ]]; then
         exit 1
     fi
 else
-    # Fallback to PyPI (requires package publication)
+    # Install directly from GitHub
+    GITHUB_URL="https://github.com/0xkhdr/clipress"
     if command -v pipx &>/dev/null; then
-        pipx install clipress
+        pipx install "git+${GITHUB_URL}.git"
     elif command -v pip &>/dev/null; then
-        pip install clipress
+        pip install "git+${GITHUB_URL}.git"
     else
         echo "Error: pip or pipx required."
         exit 1
