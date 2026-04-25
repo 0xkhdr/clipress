@@ -106,8 +106,8 @@ def init():
 _HOOK_COMMAND = "python -m clipress.hooks.post_tool_use"
 
 
-def _write_hook_to_settings(settings_path: Path, matcher: str, label: str) -> bool:
-    """Insert the PostToolUse hook entry into a settings.json file. Returns True if written."""
+def _write_hook_to_settings(settings_path: Path, matcher: str, label: str, event_name: str = "PostToolUse") -> bool:
+    """Insert a hook entry into a settings.json file. Returns True if written."""
     settings: dict = {}
     if settings_path.exists():
         try:
@@ -117,23 +117,23 @@ def _write_hook_to_settings(settings_path: Path, matcher: str, label: str) -> bo
             settings = {}
 
     hooks = settings.setdefault("hooks", {})
-    post_tool_use: list = hooks.setdefault("PostToolUse", [])
+    event_hooks: list = hooks.setdefault(event_name, [])
 
-    for h in post_tool_use:
+    for h in event_hooks:
         if h.get("matcher") == matcher:
             for sub in h.get("hooks", []):
                 if sub.get("command") == _HOOK_COMMAND:
                     return False  # already present
 
-    post_tool_use.append({"matcher": matcher, "hooks": [{"type": "command", "command": _HOOK_COMMAND}]})
+    event_hooks.append({"matcher": matcher, "hooks": [{"type": "command", "command": _HOOK_COMMAND}]})
     with open(settings_path, "w", encoding="utf-8") as f:
         json.dump(settings, f, indent=2)
-    click.echo(f"  Registered PostToolUse hook in {label}")
+    click.echo(f"  Registered {event_name} hook in {label}")
     return True
 
 
-def _remove_hook_from_settings(settings_path: Path, matcher: str, label: str) -> bool:
-    """Remove the PostToolUse hook entry from a settings.json file. Returns True if removed."""
+def _remove_hook_from_settings(settings_path: Path, matcher: str, label: str, event_name: str = "PostToolUse") -> bool:
+    """Remove a hook entry from a settings.json file. Returns True if removed."""
     if not settings_path.exists():
         return False
     try:
@@ -142,36 +142,36 @@ def _remove_hook_from_settings(settings_path: Path, matcher: str, label: str) ->
     except Exception:
         return False
 
-    if "hooks" not in settings or "PostToolUse" not in settings["hooks"]:
+    if "hooks" not in settings or event_name not in settings["hooks"]:
         return False
 
-    new_ptu = []
+    new_event_hooks = []
     removed = False
-    for h in settings["hooks"]["PostToolUse"]:
+    for h in settings["hooks"][event_name]:
         if h.get("matcher") == matcher:
             new_subs = [sh for sh in h.get("hooks", []) if sh.get("command") != _HOOK_COMMAND]
             if len(new_subs) != len(h.get("hooks", [])):
                 removed = True
                 if new_subs:
                     h["hooks"] = new_subs
-                    new_ptu.append(h)
+                    new_event_hooks.append(h)
             else:
-                new_ptu.append(h)
+                new_event_hooks.append(h)
         else:
-            new_ptu.append(h)
+            new_event_hooks.append(h)
 
     if not removed:
         return False
 
-    settings["hooks"]["PostToolUse"] = new_ptu
-    if not settings["hooks"]["PostToolUse"]:
-        del settings["hooks"]["PostToolUse"]
+    settings["hooks"][event_name] = new_event_hooks
+    if not settings["hooks"][event_name]:
+        del settings["hooks"][event_name]
     if not settings["hooks"]:
         del settings["hooks"]
 
     with open(settings_path, "w", encoding="utf-8") as f:
         json.dump(settings, f, indent=2)
-    click.echo(f"  Unregistered PostToolUse hook from {label}")
+    click.echo(f"  Unregistered {event_name} hook from {label}")
     return True
 
 
@@ -210,21 +210,25 @@ def _remove_global_claude_hook(silent: bool = True) -> None:
 
 
 def _register_gemini_hook(workspace: str) -> None:
-    """Adds the PostToolUse hook to .gemini/settings.json in the project workspace."""
+    """Adds the AfterTool hook to .gemini/settings.json in the project workspace."""
     gemini_dir = Path(workspace) / ".gemini"
     gemini_dir.mkdir(mode=0o700, exist_ok=True)
     settings_path = gemini_dir / "settings.json"
     try:
-        _write_hook_to_settings(settings_path, "run_shell_command", ".gemini/settings.json")
+        # Remove stale "PostToolUse" key written by older versions of clipress.
+        _remove_hook_from_settings(settings_path, "run_shell_command", ".gemini/settings.json", event_name="PostToolUse")
+        _write_hook_to_settings(settings_path, "run_shell_command", ".gemini/settings.json", event_name="AfterTool")
     except Exception as e:
         click.echo(f"  Warning: Could not register Gemini CLI hook: {e}")
 
 
 def _unregister_gemini_hook(workspace: str) -> None:
-    """Removes the PostToolUse hook from .gemini/settings.json in the project workspace."""
+    """Removes the AfterTool hook from .gemini/settings.json in the project workspace."""
     settings_path = Path(workspace) / ".gemini" / "settings.json"
     try:
-        _remove_hook_from_settings(settings_path, "run_shell_command", ".gemini/settings.json")
+        _remove_hook_from_settings(settings_path, "run_shell_command", ".gemini/settings.json", event_name="AfterTool")
+        # Also clean up stale "PostToolUse" key if present from older versions.
+        _remove_hook_from_settings(settings_path, "run_shell_command", ".gemini/settings.json", event_name="PostToolUse")
     except Exception as e:
         click.echo(f"  Warning: Could not unregister Gemini CLI hook: {e}")
 
