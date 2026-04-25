@@ -26,7 +26,10 @@ def status():
     config_path = Path(workspace) / ".clipress" / "config.yaml"
 
     click.echo(f"Workspace: {workspace}")
-    click.echo(f"Config path: {config_path} (Exists: {config_path.exists()})")
+    if config_path.exists():
+        click.echo(f"Config path: {config_path}")
+    else:
+        click.echo(f"Config path: {config_path} (not found — run 'clipress init' to set up)")
     click.echo(format_report(learner.summary()))
 
 
