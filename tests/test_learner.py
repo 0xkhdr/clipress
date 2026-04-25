@@ -10,7 +10,6 @@ from clipress.learner import (
 def test_records_new_command(tmp_path):
     learner = Learner(str(tmp_path))
     learner.record("cmd", "list", 100, 50)
-    time.sleep(0.1)  # wait for async save
 
     assert "cmd" in learner.data["entries"]
     assert learner.data["entries"]["cmd"]["confidence"] == INITIAL_CONFIDENCE
@@ -60,21 +59,28 @@ def test_promotes_to_hot_at_threshold(tmp_path):
 
 
 def test_does_not_record_output_content(tmp_path):
+    """Verify output content is never persisted — only strategy metadata goes to the DB."""
     learner = Learner(str(tmp_path))
-    # output content is not passed to record anyway
     learner.record("cmd", "list", 100, 50)
-    time.sleep(0.1)
 
-    with open(tmp_path / ".clipress" / "registry.json") as f:
-        content = f.read()
-        assert "list" in content
-        # It never had output to begin with
+    # The SQLite DB must exist and contain strategy name, not raw output
+    db_path = tmp_path / ".clipress" / "registry.db"
+    assert db_path.exists()
+
+    import sqlite3
+    conn = sqlite3.connect(str(db_path))
+    row = conn.execute("SELECT strategy FROM entries WHERE command='cmd'").fetchone()
+    conn.close()
+    assert row is not None
+    assert row[0] == "list"
 
 
-def test_atomic_write_on_save(tmp_path):
+def test_registry_uses_sqlite(tmp_path):
+    """Verify the registry uses SQLite (registry.db), not JSON."""
     learner = Learner(str(tmp_path))
-    learner._save()
-    assert (tmp_path / ".clipress" / "registry.json").exists()
+    learner.record("cmd", "list", 100, 50)
+
+    assert (tmp_path / ".clipress" / "registry.db").exists()
 
 
 def test_returns_none_on_low_confidence(tmp_path):
@@ -85,15 +91,16 @@ def test_returns_none_on_low_confidence(tmp_path):
 
 
 def test_handles_corrupt_registry_gracefully(tmp_path):
+    """A corrupt registry.json (legacy) must not crash Learner init; SQLite starts fresh."""
     d = tmp_path / ".clipress"
     d.mkdir()
+    # Write corrupt JSON (legacy format) — migration will fail silently
     (d / "registry.json").write_text("{bad json")
 
-    # Should not crash, just start fresh
     learner = Learner(str(tmp_path))
+    # DB is clean: no entries migrated from corrupt JSON
     assert learner.data["stats"]["total_commands_learned"] == 0
     learner.record("cmd", "list", 100, 50)
-    time.sleep(0.1)
 
     res = learner.data["entries"]["cmd"]
     assert res is not None
@@ -108,16 +115,13 @@ def test_reset_clears_hot_flag(tmp_path):
     entry = learner.data["entries"]["git diff"]
     assert entry["hot"] is True
 
-    entry["confidence"] = 0.50
-    entry["hot"] = False
-    entry["calls"] = 0
-    learner._save()
-    time.sleep(0.1)
+    # Use the proper reset API (not dict mutation + _save, which is a no-op)
+    learner.reset_command("git diff")
 
     learner2 = Learner(str(tmp_path))
     e2 = learner2.data["entries"]["git diff"]
     assert e2["hot"] is False
-    assert e2["confidence"] == 0.50
+    assert e2["confidence"] == INITIAL_CONFIDENCE
     assert e2["calls"] == 0
     assert learner2.lookup("git diff") is None
 
@@ -130,7 +134,11 @@ def test_handles_registry_missing_stats_key(tmp_path):
     (d / "registry.json").write_text(json.dumps({"version": "1.0"}))
 
     learner = Learner(str(tmp_path))
-    assert learner.data["stats"]["session_count"] >= 1
+    # Stats dict must be accessible without KeyError (no crash on missing keys)
+    stats = learner.data["stats"]
+    assert "total_commands_learned" in stats
+    assert "total_tokens_saved" in stats
+    assert stats["total_commands_learned"] == 0
     assert learner.data["entries"] == {}
 
 

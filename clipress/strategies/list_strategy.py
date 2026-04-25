@@ -66,6 +66,13 @@ class ListStrategy(BaseStrategy):
                         grouped_lines.extend(files)
                 lines = others + grouped_lines
 
+        # Clamp head + tail to max_lines so user-specified max_lines is always respected
+        total_window = head_lines + tail_lines
+        if total_window > max_lines:
+            ratio = head_lines / total_window if total_window else 0.8
+            head_lines = max(1, int(max_lines * ratio))
+            tail_lines = max(0, max_lines - head_lines)
+
         if len(lines) <= max_lines:
             pass  # Keep as is
         else:

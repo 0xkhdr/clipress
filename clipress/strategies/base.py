@@ -1,6 +1,6 @@
 import re
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, Optional
 
 
 class BaseStrategy(ABC):
@@ -38,7 +38,6 @@ class BaseStrategy(ABC):
 
         # restore any always_keep lines that were stripped
         if keep_patterns:
-            # We want to find which original lines matched keep_patterns
             kept = []
             for ln in original_lines:
                 for p in keep_patterns:
@@ -68,3 +67,34 @@ class BaseStrategy(ABC):
 
     def name(self) -> str:
         return self.__class__.__name__.replace("Strategy", "").lower()
+
+
+class StreamStrategy:
+    """
+    Mixin for strategies that can process output line-by-line.
+
+    Stateful — create a fresh instance per streaming operation.
+    Compatible with safety.py line-level checks: callers may filter lines
+    before passing them to process_line().
+    """
+
+    def process_line(self, line: str) -> Optional[str]:
+        """
+        Process one output line.
+
+        Returns the (possibly transformed) line to emit immediately,
+        or None to swallow the line.
+        """
+        raise NotImplementedError
+
+    def finalize(self) -> list[str]:
+        """
+        Called once when the stream ends.
+
+        Returns any trailing lines (e.g. the captured final status line).
+        """
+        return []
+
+    def reset(self) -> None:
+        """Reset internal state to allow reuse (not required by callers)."""
+        pass

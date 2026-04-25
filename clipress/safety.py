@@ -150,7 +150,7 @@ def should_skip(command: str, output: str, workspace: str, config: dict) -> tupl
     if is_minimal(output, threshold=min_lines):
         return True, "minimal output"
 
-    if config.get("engine", {}).get("pass_through_on_error", False):
+    if config.get("engine", {}).get("pass_through_on_error", True):
         from clipress.classifier import detect
         shape, conf = detect(output)
         if shape == "error" and conf >= 0.7:
