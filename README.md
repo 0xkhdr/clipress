@@ -24,11 +24,34 @@ A Python-based CLI proxy that intercepts bash command output before it reaches a
 
 ## Quick Start
 
-```bash
-pip install clipress
-# Or from source:
-./install.sh            # prefers pipx, falls back to pip, then runs `clipress init`
+**Requires Python 3.11+.**
 
+### Install
+
+```bash
+# One-liner (installs from GitHub, then runs `clipress init`)
+curl -sSL https://raw.githubusercontent.com/0xkhdr/clipress/main/install.sh | bash
+
+# Recommended — isolated install via pipx
+pipx install clipress
+
+# Or with pip
+pip install clipress
+
+# Or directly from GitHub
+pipx install "git+https://github.com/0xkhdr/clipress.git"
+
+# Or from a local clone (runs init automatically)
+git clone https://github.com/0xkhdr/clipress.git
+cd clipress
+./install.sh            # prefers pipx, falls back to pip, then runs `clipress init`
+```
+
+> `install.sh` detects whether it is running inside the cloned repo (presence of `pyproject.toml`) and installs from local source. When run outside a repo (including the curl path) it installs directly from GitHub.
+
+### Initialize and use
+
+```bash
 # Initialize a workspace
 cd your-project
 clipress init
