@@ -93,7 +93,98 @@ def init():
         )
         click.echo("  Created .clipress/.clipress-ignore")
 
+    _register_claude_hook()
     click.echo("Initialized clipress in this directory.")
+
+
+def _register_claude_hook():
+    """Adds the PostToolUse hook to ~/.claude/settings.json if it exists."""
+    settings_path = Path.home() / ".claude" / "settings.json"
+    if not settings_path.parent.exists():
+        # Claude Code doesn't seem to be installed (no ~/.claude folder)
+        return
+
+    try:
+        settings = {}
+        if settings_path.exists():
+            with open(settings_path, "r", encoding="utf-8") as f:
+                settings = json.load(f)
+
+        hooks = settings.get("hooks", {})
+        post_tool_use = hooks.get("PostToolUse", [])
+
+        command = "python -m clipress.hooks.post_tool_use"
+        
+        # Check if already exists
+        exists = False
+        for h in post_tool_use:
+            if h.get("matcher") == "Bash":
+                for sub_hook in h.get("hooks", []):
+                    if sub_hook.get("command") == command:
+                        exists = True
+                        break
+            if exists:
+                break
+
+        if not exists:
+            post_tool_use.append({
+                "matcher": "Bash",
+                "hooks": [{"type": "command", "command": command}]
+            })
+            hooks["PostToolUse"] = post_tool_use
+            settings["hooks"] = hooks
+
+            with open(settings_path, "w", encoding="utf-8") as f:
+                json.dump(settings, f, indent=2)
+            click.echo("  Registered PostToolUse hook in ~/.claude/settings.json")
+    except Exception as e:
+        click.echo(f"  Warning: Could not register Claude hook: {e}")
+
+
+def _unregister_claude_hook():
+    """Removes the PostToolUse hook from ~/.claude/settings.json."""
+    settings_path = Path.home() / ".claude" / "settings.json"
+    if not settings_path.exists():
+        return
+
+    try:
+        with open(settings_path, "r", encoding="utf-8") as f:
+            settings = json.load(f)
+
+        if "hooks" not in settings or "PostToolUse" not in settings["hooks"]:
+            return
+
+        post_tool_use = settings["hooks"]["PostToolUse"]
+        command = "python -m clipress.hooks.post_tool_use"
+
+        new_post_tool_use = []
+        removed = False
+        for h in post_tool_use:
+            if h.get("matcher") == "Bash":
+                sub_hooks = h.get("hooks", [])
+                new_sub_hooks = [sh for sh in sub_hooks if sh.get("command") != command]
+                if len(new_sub_hooks) != len(sub_hooks):
+                    removed = True
+                    if new_sub_hooks:
+                        h["hooks"] = new_sub_hooks
+                        new_post_tool_use.append(h)
+                else:
+                    new_post_tool_use.append(h)
+            else:
+                new_post_tool_use.append(h)
+
+        if removed:
+            settings["hooks"]["PostToolUse"] = new_post_tool_use
+            if not settings["hooks"]["PostToolUse"]:
+                del settings["hooks"]["PostToolUse"]
+            if not settings["hooks"]:
+                del settings["hooks"]
+
+            with open(settings_path, "w", encoding="utf-8") as f:
+                json.dump(settings, f, indent=2)
+            click.echo("  Unregistered PostToolUse hook from ~/.claude/settings.json")
+    except Exception as e:
+        click.echo(f"  Warning: Could not unregister Claude hook: {e}")
 
 
 @main.group()
@@ -212,6 +303,8 @@ def uninstall(yes, keep_data):
     if not keep_data and comp_dir.exists():
         shutil.rmtree(comp_dir)
         click.echo(f"Removed {comp_dir}")
+
+    _unregister_claude_hook()
 
     # Try pipx first, fall back to pip
     if shutil.which("pipx"):

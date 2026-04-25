@@ -1,6 +1,7 @@
 import json
 import os
 import time
+from pathlib import Path
 
 import pytest
 from click.testing import CliRunner
@@ -159,3 +160,45 @@ def test_package_version_matches_pyproject():
     """__version__ must track the installed package metadata (or 0+unknown if uninstalled)."""
     from clipress import __version__
     assert isinstance(__version__, str) and __version__
+
+
+# --- Claude Hook ---
+
+def test_register_claude_hook(runner, tmp_path, monkeypatch):
+    fake_home = tmp_path / "home"
+    fake_home.mkdir()
+    monkeypatch.setattr(Path, "home", lambda: fake_home)
+    monkeypatch.chdir(tmp_path)
+    
+    claude_dir = fake_home / ".claude"
+    claude_dir.mkdir()
+    settings_path = claude_dir / "settings.json"
+    
+    result = runner.invoke(main, ["init"])
+    assert result.exit_code == 0
+    assert "Registered PostToolUse hook" in result.output
+    assert settings_path.exists()
+    
+    with open(settings_path, "r") as f:
+        settings = json.load(f)
+    assert settings["hooks"]["PostToolUse"][0]["matcher"] == "Bash"
+
+
+def test_unregister_claude_hook(runner, tmp_path, monkeypatch):
+    fake_home = tmp_path / "home"
+    fake_home.mkdir()
+    monkeypatch.setattr(Path, "home", lambda: fake_home)
+    monkeypatch.chdir(tmp_path)
+    
+    claude_dir = fake_home / ".claude"
+    claude_dir.mkdir()
+    
+    runner.invoke(main, ["init"])
+    result = runner.invoke(main, ["uninstall", "--yes"])
+    assert result.exit_code == 0
+    assert "Unregistered PostToolUse hook" in result.output
+    
+    settings_path = claude_dir / "settings.json"
+    with open(settings_path, "r") as f:
+        settings = json.load(f)
+    assert "hooks" not in settings or "PostToolUse" not in settings["hooks"]

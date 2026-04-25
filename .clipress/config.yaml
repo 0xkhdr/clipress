@@ -1,0 +1,12 @@
+# clipress workspace configuration
+# See README for full schema.
+engine:
+  show_metrics: true
+#  max_output_bytes: 10485760  # 10 MB
+#  pass_through_on_error: true
+
+# Per-command output contracts
+# commands:
+#   "git status":
+#     always_keep:
+#       - "^On branch"
