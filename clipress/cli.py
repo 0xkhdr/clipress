@@ -21,7 +21,7 @@ def status():
     """Shows current session stats, learned commands, config path"""
     workspace = os.getcwd()
     learner = Learner(workspace)
-    config_path = Path(workspace) / ".compressor" / "config.yaml"
+    config_path = Path(workspace) / ".clipress" / "config.yaml"
 
     click.echo(f"Workspace: {workspace}")
     click.echo(f"Config path: {config_path} (Exists: {config_path.exists()})")
@@ -30,9 +30,9 @@ def status():
 
 @main.command()
 def init():
-    """Initializes .compressor/ in current directory with a full scaffold"""
+    """Initializes .clipress/ in current directory with a full scaffold"""
     workspace = os.getcwd()
-    comp_dir = Path(workspace) / ".compressor"
+    comp_dir = Path(workspace) / ".clipress"
     comp_dir.mkdir(mode=0o700, exist_ok=True)
 
     # Create config.yaml with commented examples
@@ -52,7 +52,7 @@ def init():
             "#     always_keep:\n"
             "#       - \"^On branch\"\n"
         )
-        click.echo("  Created .compressor/config.yaml")
+        click.echo("  Created .clipress/config.yaml")
 
     # Create extensions directory for custom seed rules
     ext_dir = comp_dir / "extensions"
@@ -72,10 +72,10 @@ def init():
             "#   params:\n"
             "#     max_rows: 20\n"
         )
-        click.echo("  Created .compressor/extensions/example.yaml.disabled")
+        click.echo("  Created .clipress/extensions/example.yaml.disabled")
 
-    # Create .compressor-ignore with examples
-    ignore_path = comp_dir / ".compressor-ignore"
+    # Create .clipress-ignore with examples
+    ignore_path = comp_dir / ".clipress-ignore"
     if not ignore_path.exists():
         ignore_path.write_text(
             "# Commands listed here are passed through without compression.\n"
@@ -86,7 +86,7 @@ def init():
             "# psql\n"
             "# mysql\n"
         )
-        click.echo("  Created .compressor/.compressor-ignore")
+        click.echo("  Created .clipress/.clipress-ignore")
 
     click.echo("Initialized clipress in this directory.")
 
@@ -141,7 +141,7 @@ def compress_cmd(cmd_string, workspace):
 
 @main.command()
 def validate():
-    """Validates .compressor/config.yaml against schema"""
+    """Validates .clipress/config.yaml against schema"""
     workspace = os.getcwd()
     try:
         validate_config_file(workspace)
@@ -167,7 +167,7 @@ def report():
 def error_passthrough(state):
     """Toggles error pass-through for the current workspace"""
     workspace = os.getcwd()
-    comp_dir = Path(workspace) / ".compressor"
+    comp_dir = Path(workspace) / ".clipress"
     comp_dir.mkdir(mode=0o700, exist_ok=True)
     config_path = comp_dir / "config.yaml"
     

@@ -70,7 +70,7 @@ def validate_workspace_config(workspace: str) -> None:
     """
     defaults = load_defaults()
     workspace_path = Path(workspace)
-    user_config_path = workspace_path / ".compressor" / "config.yaml"
+    user_config_path = workspace_path / ".clipress" / "config.yaml"
 
     if not user_config_path.exists():
         _validate(defaults)
@@ -96,7 +96,7 @@ def get_config(workspace: str) -> dict[str, Any]:
 
     defaults = load_defaults()
     workspace_path = Path(workspace)
-    user_config_path = workspace_path / ".compressor" / "config.yaml"
+    user_config_path = workspace_path / ".clipress" / "config.yaml"
 
     config = defaults.copy()
 
@@ -117,7 +117,7 @@ def get_config(workspace: str) -> dict[str, Any]:
 
 def load_extensions(workspace: str) -> dict[str, Any]:
     workspace_path = Path(workspace)
-    extensions_dir = workspace_path / ".compressor" / "extensions"
+    extensions_dir = workspace_path / ".clipress" / "extensions"
     extensions = {}
     
     if extensions_dir.exists() and extensions_dir.is_dir():
@@ -163,7 +163,7 @@ def validate_config_file(workspace: str) -> None:
     Used by the `clipress validate` CLI command.
     """
     defaults = load_defaults()
-    user_config_path = Path(workspace) / ".compressor" / "config.yaml"
+    user_config_path = Path(workspace) / ".clipress" / "config.yaml"
     if not user_config_path.exists():
         return  # No user config — defaults are always valid
 

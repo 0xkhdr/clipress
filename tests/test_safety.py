@@ -48,9 +48,9 @@ def test_emits_to_stderr_not_stdout(workspace, config):
     assert "password" not in reason
 
 def test_respects_user_blocklist(workspace, config):
-    comp_dir = os.path.join(workspace, ".compressor")
+    comp_dir = os.path.join(workspace, ".clipress")
     os.makedirs(comp_dir, exist_ok=True)
-    with open(os.path.join(comp_dir, ".compressor-ignore"), "w") as f:
+    with open(os.path.join(comp_dir, ".clipress-ignore"), "w") as f:
         f.write("blocked_cmd\n# comment\n")
     
     output = "line\n" * 20

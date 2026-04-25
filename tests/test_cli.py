@@ -27,7 +27,7 @@ def test_cli_init(runner, tmp_path, monkeypatch):
     result = runner.invoke(main, ["init"])
     assert result.exit_code == 0
     assert "Initialized" in result.output
-    assert (tmp_path / ".compressor" / "config.yaml").exists()
+    assert (tmp_path / ".clipress" / "config.yaml").exists()
 
 
 def test_cli_status(runner, tmp_path, monkeypatch):
@@ -67,7 +67,7 @@ def test_cli_validate_valid_config(runner, tmp_path):
 def test_cli_validate_invalid_config(runner, tmp_path):
     """An invalid user config must report invalid, NOT silently fall back."""
     os.chdir(tmp_path)
-    comp_dir = tmp_path / ".compressor"
+    comp_dir = tmp_path / ".clipress"
     comp_dir.mkdir()
     (comp_dir / "config.yaml").write_text("engine:\n  min_lines_to_compress: 2\n")
     result = runner.invoke(main, ["validate"])
@@ -78,7 +78,7 @@ def test_cli_validate_invalid_config(runner, tmp_path):
 def test_cli_validate_bad_yaml(runner, tmp_path):
     """Malformed YAML must report invalid."""
     os.chdir(tmp_path)
-    comp_dir = tmp_path / ".compressor"
+    comp_dir = tmp_path / ".clipress"
     comp_dir.mkdir()
     (comp_dir / "config.yaml").write_text("engine: [\n  bad yaml")
     result = runner.invoke(main, ["validate"])
@@ -133,7 +133,7 @@ def test_cli_error_passthrough_on(runner, tmp_path):
     assert "pass_through_on_error" in result.output
 
     from ruamel.yaml import YAML
-    cfg = YAML(typ="safe").load((tmp_path / ".compressor" / "config.yaml").read_text())
+    cfg = YAML(typ="safe").load((tmp_path / ".clipress" / "config.yaml").read_text())
     assert cfg["engine"]["pass_through_on_error"] is True
 
 
@@ -145,7 +145,7 @@ def test_cli_error_passthrough_off(runner, tmp_path):
     assert result.exit_code == 0
 
     from ruamel.yaml import YAML
-    cfg = YAML(typ="safe").load((tmp_path / ".compressor" / "config.yaml").read_text())
+    cfg = YAML(typ="safe").load((tmp_path / ".clipress" / "config.yaml").read_text())
     assert cfg["engine"]["pass_through_on_error"] is False
 
 

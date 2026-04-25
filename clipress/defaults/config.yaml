@@ -1,5 +1,5 @@
 # clipress default configuration
-# These defaults are merged with workspace .compressor/config.yaml
+# These defaults are merged with workspace .clipress/config.yaml
 
 engine:
   min_lines_to_compress: 15

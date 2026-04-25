@@ -31,7 +31,7 @@ def test_safety_gate_runs_before_compression(capsys):
 
 def test_contract_always_keep_survives_compression(tmp_path):
     # Configure workspace contract
-    d = tmp_path / ".compressor"
+    d = tmp_path / ".clipress"
     d.mkdir()
     (d / "config.yaml").write_text("""
 contracts:
@@ -45,7 +45,7 @@ contracts:
 
 
 def test_contract_always_strip_applied_last(tmp_path):
-    d = tmp_path / ".compressor"
+    d = tmp_path / ".clipress"
     d.mkdir()
     (d / "config.yaml").write_text("""
 contracts:
@@ -58,7 +58,7 @@ contracts:
     assert "STRIP_ME" not in res
 
 def test_global_ansi_stripping(tmp_path):
-    d = tmp_path / ".compressor"
+    d = tmp_path / ".clipress"
     d.mkdir()
     (d / "config.yaml").write_text("""
 engine:
@@ -86,7 +86,7 @@ def test_hot_path_under_10ms(tmp_path):
 
 def test_max_output_bytes_passthrough(tmp_path, capsys):
     """GAP-1: Outputs exceeding max_output_bytes must be passed through, not processed."""
-    d = tmp_path / ".compressor"
+    d = tmp_path / ".clipress"
     d.mkdir()
     (d / "config.yaml").write_text("engine:\n  max_output_bytes: 100\n")
     from clipress.config import clear_cache

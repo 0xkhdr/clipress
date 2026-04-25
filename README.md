@@ -151,15 +151,15 @@ some_command | clipress compress "some_command"
 `clipress init` creates the following in your project root:
 
 ```
-.compressor/
+.clipress/
 ├── config.yaml           # local overrides (merged on top of defaults)
 ├── registry.json         # learned command patterns (auto-managed)
-├── .compressor-ignore    # blocklist — one command prefix per line
+├── .clipress-ignore    # blocklist — one command prefix per line
 └── extensions/           # custom seed rules
     └── *.yaml
 ```
 
-### Config File (`.compressor/config.yaml`)
+### Config File (`.clipress/config.yaml`)
 
 All keys are optional — unset keys fall back to the built-in defaults below.
 
@@ -189,12 +189,12 @@ commands:                     # per-command contract overrides
       - "CREATED"
 ```
 
-### User Extensions (`.compressor/extensions/*.yaml`)
+### User Extensions (`.clipress/extensions/*.yaml`)
 
 Define custom seed rules for your own commands. User extensions override built-in seeds. Matching is longest-key-first, so `docker ps -a` takes priority over `docker ps`.
 
 ```yaml
-# .compressor/extensions/mytools.yaml
+# .clipress/extensions/mytools.yaml
 
 "my-deploy":
   strategy: progress
@@ -209,12 +209,12 @@ Define custom seed rules for your own commands. User extensions override built-i
 
 Rename any `.yaml` file to `.yaml.disabled` to exclude it without deleting it.
 
-### Blocklist (`.compressor/.compressor-ignore`)
+### Blocklist (`.clipress/.clipress-ignore`)
 
 One command prefix per line. Any command starting with a listed prefix is passed through uncompressed. Lines starting with `#` are comments.
 
 ```
-# .compressor/.compressor-ignore
+# .clipress/.clipress-ignore
 kubectl exec
 psql
 mysql
@@ -342,13 +342,13 @@ An LRU `OrderedDict` (max 100 entries) protected by `threading.Lock`. Commands t
 
 ### Tier 2 — Seed Registry (built-in + user extensions)
 
-Pre-defined strategies for common tools (`git`, `docker`, `pytest`, `kubectl`, `npm`, …) shipped with the package in `clipress/registry/seeds.json`. User extensions in `.compressor/extensions/*.yaml` are merged on top with `user_override: true`.
+Pre-defined strategies for common tools (`git`, `docker`, `pytest`, `kubectl`, `npm`, …) shipped with the package in `clipress/registry/seeds.json`. User extensions in `.clipress/extensions/*.yaml` are merged on top with `user_override: true`.
 
 Seeds are sorted **longest-key-first** so `docker ps -a` matches before `docker ps`.
 
 ### Tier 3 — Workspace Learner (persistent, disk-backed)
 
-Stored in `.compressor/registry.json`. Each command gets an entry:
+Stored in `.clipress/registry.json`. Each command gets an entry:
 
 ```json
 "git log": {
@@ -464,10 +464,10 @@ clipress is a compressor, not a validator. It must never crash the agent or bloc
 
 | Command | Description |
 | :--- | :--- |
-| `clipress init` | Create `.compressor/` in the current directory with default config |
+| `clipress init` | Create `.clipress/` in the current directory with default config |
 | `clipress compress "<cmd>"` | Read stdin, write compressed output to stdout |
 | `clipress status` | Show workspace path, config path, and learned stats |
-| `clipress validate` | Validate `.compressor/config.yaml`; exit non-zero on error |
+| `clipress validate` | Validate `.clipress/config.yaml`; exit non-zero on error |
 | `clipress report` | Print full token-savings summary |
 | `clipress learn show` | Dump `registry.json` as JSON |
 | `clipress learn reset [cmd]` | Reset confidence for one command, or all entries |

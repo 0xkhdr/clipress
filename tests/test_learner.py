@@ -65,7 +65,7 @@ def test_does_not_record_output_content(tmp_path):
     learner.record("cmd", "list", 100, 50)
     time.sleep(0.1)
 
-    with open(tmp_path / ".compressor" / "registry.json") as f:
+    with open(tmp_path / ".clipress" / "registry.json") as f:
         content = f.read()
         assert "list" in content
         # It never had output to begin with
@@ -74,7 +74,7 @@ def test_does_not_record_output_content(tmp_path):
 def test_atomic_write_on_save(tmp_path):
     learner = Learner(str(tmp_path))
     learner._save()
-    assert (tmp_path / ".compressor" / "registry.json").exists()
+    assert (tmp_path / ".clipress" / "registry.json").exists()
 
 
 def test_returns_none_on_low_confidence(tmp_path):
@@ -85,7 +85,7 @@ def test_returns_none_on_low_confidence(tmp_path):
 
 
 def test_handles_corrupt_registry_gracefully(tmp_path):
-    d = tmp_path / ".compressor"
+    d = tmp_path / ".clipress"
     d.mkdir()
     (d / "registry.json").write_text("{bad json")
 
@@ -125,7 +125,7 @@ def test_reset_clears_hot_flag(tmp_path):
 def test_handles_registry_missing_stats_key(tmp_path):
     """Older/partial registry.json (no 'stats' or 'entries' key) must not crash init."""
     import json
-    d = tmp_path / ".compressor"
+    d = tmp_path / ".clipress"
     d.mkdir()
     (d / "registry.json").write_text(json.dumps({"version": "1.0"}))
 
@@ -137,7 +137,7 @@ def test_handles_registry_missing_stats_key(tmp_path):
 def test_handles_non_dict_registry_payload(tmp_path):
     """A JSON array where a dict is expected must not crash init."""
     import json
-    d = tmp_path / ".compressor"
+    d = tmp_path / ".clipress"
     d.mkdir()
     (d / "registry.json").write_text(json.dumps(["not", "a", "dict"]))
 

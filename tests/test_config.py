@@ -41,7 +41,7 @@ def test_get_config_no_user_config(tmp_path):
 
 def test_get_config_with_user_override(tmp_path):
     config.clear_cache()
-    comp_dir = tmp_path / ".compressor"
+    comp_dir = tmp_path / ".clipress"
     comp_dir.mkdir()
     user_cfg = {"engine": {"min_lines_to_compress": 10}}
     with open(comp_dir / "config.yaml", "w") as f:
@@ -55,7 +55,7 @@ def test_get_config_with_user_override(tmp_path):
 
 def test_get_config_invalid_user_config(tmp_path, capsys):
     config.clear_cache()
-    comp_dir = tmp_path / ".compressor"
+    comp_dir = tmp_path / ".clipress"
     comp_dir.mkdir()
     # Invalid validation condition: min_lines_to_compress < 5
     user_cfg = {"engine": {"min_lines_to_compress": 2}}
@@ -71,7 +71,7 @@ def test_get_config_invalid_user_config(tmp_path, capsys):
 
 def test_loads_user_extensions(tmp_path):
     config.clear_cache()
-    ext_dir = tmp_path / ".compressor" / "extensions"
+    ext_dir = tmp_path / ".clipress" / "extensions"
     ext_dir.mkdir(parents=True)
     ext_cfg = {"my_cmd": {"strategy": "generic"}}
     with open(ext_dir / "my_ext.yaml", "w") as f:
@@ -84,7 +84,7 @@ def test_loads_user_extensions(tmp_path):
 
 def test_user_extension_overrides_builtin_seed(tmp_path):
     config.clear_cache()
-    ext_dir = tmp_path / ".compressor" / "extensions"
+    ext_dir = tmp_path / ".clipress" / "extensions"
     ext_dir.mkdir(parents=True)
     ext_cfg = {"ls": {"strategy": "table"}}
     with open(ext_dir / "my_ls.yaml", "w") as f:
@@ -96,7 +96,7 @@ def test_user_extension_overrides_builtin_seed(tmp_path):
 
 def test_seed_matching_ordered_by_length(tmp_path):
     config.clear_cache()
-    ext_dir = tmp_path / ".compressor" / "extensions"
+    ext_dir = tmp_path / ".clipress" / "extensions"
     ext_dir.mkdir(parents=True)
     ext_cfg = {
         "docker ps -a": {"strategy": "list"},
@@ -111,7 +111,7 @@ def test_seed_matching_ordered_by_length(tmp_path):
 
 def test_per_command_contracts_merged(tmp_path):
     config.clear_cache()
-    comp_dir = tmp_path / ".compressor"
+    comp_dir = tmp_path / ".clipress"
     comp_dir.mkdir()
     user_cfg = {
         "contracts": {"global": {"always_keep": ["GLOBAL_KEEP"]}},
@@ -127,7 +127,7 @@ def test_per_command_contracts_merged(tmp_path):
 
 def test_invalid_max_output_bytes_falls_back_to_defaults(tmp_path, capsys):
     config.clear_cache()
-    comp_dir = tmp_path / ".compressor"
+    comp_dir = tmp_path / ".clipress"
     comp_dir.mkdir()
     # Negative value should fail validation
     user_cfg = {"engine": {"max_output_bytes": -1}}

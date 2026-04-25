@@ -49,7 +49,7 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.sdist]
 exclude = [
-    ".compressor/",
+    ".clipress/",
     ".coverage",
     ".venv/",
     "uv.lock",

@@ -49,7 +49,7 @@ class _SaveWorker:
 class Learner:
     def __init__(self, workspace: str):
         self.workspace = workspace
-        self.dir_path = Path(workspace) / ".compressor"
+        self.dir_path = Path(workspace) / ".clipress"
         self.path = self.dir_path / "registry.json"
         self.data: dict[str, Any] = self._default_data()
         self._load()

@@ -39,11 +39,11 @@
 
 ## 📜 Configuration & Rules
 
-- **Workspace Config**: `.compressor/config.yaml` overrides defaults.
+- **Workspace Config**: `.clipress/config.yaml` overrides defaults.
 - **Contracts**:
     - `always_keep`: Regex list of patterns that MUST remain in output.
     - `always_strip`: Regex list of patterns that MUST be removed.
-- **Ignore List**: `.compressor/.compressor-ignore` to skip `clipress` for specific commands.
+- **Ignore List**: `.clipress/.clipress-ignore` to skip `clipress` for specific commands.
 
 ## 🧠 Learning Loop
 
@@ -56,16 +56,16 @@
 | Command | Description |
 | :--- | :--- |
 | `clipress status` | Shows workspace status, config path, and learned stats. |
-| `clipress init` | Initializes `.compressor/` in the current directory. |
+| `clipress init` | Initializes `.clipress/` in the current directory. |
 | `clipress compress "<cmd>"` | Core command. Compresses `stdin` and writes to `stdout`. |
 | `clipress learn show` | Displays the `registry.json` content. |
 | `clipress learn reset` | Resets confidence for a specific command or all learned data. |
-| `clipress validate` | Checks if `.compressor/config.yaml` is valid. |
+| `clipress validate` | Checks if `.clipress/config.yaml` is valid. |
 | `clipress report` | Prints a summary of token savings. |
 | `clipress error-passthrough on/off` | Toggles whether errors should skip compression. |
 
 ## 💡 Agent Tips
 
-- **Force Raw**: If you need the full output, look for a `--no-compress` flag or similar (if implemented in the CLI) or check the command in `.compressor-ignore`.
-- **Custom Rules**: You can suggest adding regex to `always_keep` in `.compressor/config.yaml` if `clipress` is stripping vital info.
+- **Force Raw**: If you need the full output, look for a `--no-compress` flag or similar (if implemented in the CLI) or check the command in `.clipress-ignore`.
+- **Custom Rules**: You can suggest adding regex to `always_keep` in `.clipress/config.yaml` if `clipress` is stripping vital info.
 - **Metrics**: `clipress` prints token savings to `stderr` if `engine.show_metrics` is true.

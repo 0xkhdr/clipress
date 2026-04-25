@@ -47,11 +47,11 @@ def _compile_user_patterns(patterns: list[str]) -> list[re.Pattern[str]]:
 
 def load_blocklist(workspace: str) -> list[str]:
     """
-    Reads .compressor/.compressor-ignore.
+    Reads .clipress/.clipress-ignore.
     Each line is a command prefix (exact match at start of normalized command).
     Empty lines and lines starting with # are ignored.
     """
-    ignore_file = Path(workspace) / ".compressor" / ".compressor-ignore"
+    ignore_file = Path(workspace) / ".clipress" / ".clipress-ignore"
     if not ignore_file.exists():
         return []
 
