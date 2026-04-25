@@ -472,6 +472,7 @@ clipress is a compressor, not a validator. It must never crash the agent or bloc
 | `clipress learn show` | Dump `registry.json` as JSON |
 | `clipress learn reset [cmd]` | Reset confidence for one command, or all entries |
 | `clipress error-passthrough on\|off` | Toggle `pass_through_on_error` in config |
+| `clipress uninstall` | Remove the PostToolUse hook from `.claude/settings.json` |
 
 ---
 
