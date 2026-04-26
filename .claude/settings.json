@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/home/xkhdr/.cache/pipx/0dd332336b0b928/bin/clipress hook"
+            "command": "clipress hook"
           }
         ]
       }
