@@ -17,10 +17,16 @@ SECURITY_PATTERNS = [
     r"\bGITHUB_TOKEN\b",  # GitHub tokens
     r"\bbearer\s+[a-zA-Z0-9]",  # Bearer tokens in output
     r"-----BEGIN",  # PEM header
+    r"\.ssh/",  # any file under .ssh/
+    r"\$[A-Z_]{4,}",  # shell variable expansion like $SECRET, $TOKEN
+    r"echo\s+\$",  # echo $VAR
+    r"\bprivate[_-]?key\b",  # private key references
+    r"\.netrc\b",  # netrc credentials file
+    r"\bvault\s+read\b",  # HashiCorp vault commands
 ]
 
 # Commands that dump environment variables — their output is always security-sensitive
-SENSITIVE_ENV_COMMANDS = ["printenv", "declare", "env", "set"]
+SENSITIVE_ENV_COMMANDS = ["printenv", "declare", "env", "set", "history", "fc"]
 
 _DEFAULT_COMPILED = [re.compile(p, re.IGNORECASE) for p in SECURITY_PATTERNS]
 

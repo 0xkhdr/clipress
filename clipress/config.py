@@ -1,19 +1,12 @@
 import sys
 import json
+import yaml
 from pathlib import Path
 from typing import Any
-from ruamel.yaml import YAML
 
 
 class ConfigError(ValueError):
     """Raised when the user's config.yaml fails validation."""
-
-class _YamlWrapper:
-    @staticmethod
-    def safe_load(stream):
-        return YAML(typ="safe").load(stream)
-
-yaml = _YamlWrapper()
 
 _CONFIG_CACHE: dict[str, dict[str, Any]] = {}
 _SEED_CACHE: dict[str, dict[str, Any]] = {}

@@ -4,10 +4,10 @@ _PCT_PATTERN = re.compile(r"\d+%")
 _FRAC_PATTERN = re.compile(r"\d+/\d+")
 _PROGRESS_WORDS = re.compile(r"downloading|fetching|step|layer", re.IGNORECASE)
 _TEST_WORDS = re.compile(r"PASSED|FAILED|ERROR|ok|FAIL")
-_DIFF_PLUS_MINUS = re.compile(r"^[+-](?![+-])")
-_KEY_VALUE1 = re.compile(r"^\w[\w\s]+:\s+\S")
-_KEY_VALUE2 = re.compile(r"^\w[\w\s]+=\s*\S")
-_TABLE_SEP = re.compile(r"^[-\s|+]+$")
+_DIFF_PLUS_MINUS = re.compile(r"^[+-](?![+-])", re.MULTILINE)
+_KEY_VALUE1 = re.compile(r"^\w[\w\s]+:\s+\S", re.MULTILINE)
+_KEY_VALUE2 = re.compile(r"^\w[\w\s]+=\s*\S", re.MULTILINE)
+_TABLE_SEP = re.compile(r"^[-\s|+]+$", re.MULTILINE)
 _TABLE_COLUMNS = re.compile(r"\s{2,}|\t|\|")
 
 
@@ -35,49 +35,24 @@ def detect(output: str) -> tuple[str, float]:
         "error": 0.0,
     }
 
-    # Pre-calculate common metrics
-    num_colon_patterns = 0
-    num_plus_minus = 0
-    num_pct_frac = 0
-    num_progress_words = 0
-    num_test_words = 0
-    num_test_name_hits = 0
-    num_at_at = 0
-    num_diff_markers = 0
-    num_kv1 = 0
-    num_kv2 = 0
-    num_error_frames = 0
+    # Single-pass: join lines once and scan the full string
+    _sample = "\n".join(lines)
+    _sample_lower = _sample.lower()
 
-    has_traceback = False
-    has_exception = False
-
-    for line in lines:
-        if ":" in line:
-            num_colon_patterns += 1
-        if _DIFF_PLUS_MINUS.match(line):
-            num_plus_minus += 1
-        if _PCT_PATTERN.search(line) or _FRAC_PATTERN.search(line):
-            num_pct_frac += 1
-        if _PROGRESS_WORDS.search(line):
-            num_progress_words += 1
-        if _TEST_WORDS.search(line):
-            num_test_words += 1
-        if "test" in line.lower():
-            num_test_name_hits += 1
-        if "@@" in line:
-            num_at_at += 1
-        if "---" in line or "+++" in line:
-            num_diff_markers += 1
-        if _KEY_VALUE1.match(line):
-            num_kv1 += 1
-        if _KEY_VALUE2.match(line):
-            num_kv2 += 1
-        if "Traceback" in line:
-            has_traceback = True
-        if "Exception" in line:
-            has_exception = True
-        if "at line" in line or 'File "' in line:
-            num_error_frames += 1
+    # Pre-calculate common metrics using single-pass full-string scan
+    num_colon_patterns = _sample.count(":")
+    num_plus_minus = len(_DIFF_PLUS_MINUS.findall(_sample))
+    num_pct_frac = len(_PCT_PATTERN.findall(_sample)) + len(_FRAC_PATTERN.findall(_sample))
+    num_progress_words = len(_PROGRESS_WORDS.findall(_sample))
+    num_test_words = len(_TEST_WORDS.findall(_sample))
+    num_test_name_hits = _sample_lower.count("test")
+    num_at_at = _sample.count("@@")
+    num_diff_markers = _sample.count("---") + _sample.count("+++")
+    num_kv1 = len(_KEY_VALUE1.findall(_sample))
+    num_kv2 = len(_KEY_VALUE2.findall(_sample))
+    num_error_frames = _sample.count('File "') + _sample.count("at line")
+    has_traceback = "Traceback" in _sample
+    has_exception = "Exception" in _sample
 
     # list
     if num_lines > 20:

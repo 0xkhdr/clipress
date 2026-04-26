@@ -1,6 +1,7 @@
 import json
 import os
 import time
+import yaml
 from pathlib import Path
 
 import pytest
@@ -133,8 +134,7 @@ def test_cli_error_passthrough_on(runner, tmp_path):
     assert result.exit_code == 0
     assert "pass_through_on_error" in result.output
 
-    from ruamel.yaml import YAML
-    cfg = YAML(typ="safe").load((tmp_path / ".clipress" / "config.yaml").read_text())
+    cfg = yaml.safe_load((tmp_path / ".clipress" / "config.yaml").read_text())
     assert cfg["engine"]["pass_through_on_error"] is True
 
 
@@ -145,8 +145,7 @@ def test_cli_error_passthrough_off(runner, tmp_path):
     result = runner.invoke(main, ["error-passthrough", "off"])
     assert result.exit_code == 0
 
-    from ruamel.yaml import YAML
-    cfg = YAML(typ="safe").load((tmp_path / ".clipress" / "config.yaml").read_text())
+    cfg = yaml.safe_load((tmp_path / ".clipress" / "config.yaml").read_text())
     assert cfg["engine"]["pass_through_on_error"] is False
 
 

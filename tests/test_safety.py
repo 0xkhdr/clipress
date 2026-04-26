@@ -116,3 +116,24 @@ def test_generic_secret_word_boundary(workspace, config):
     assert should_skip is False, (
         "the built-in 'secret' pattern should not match 'secretary' after word-boundary fix"
     )
+
+
+def test_blocks_ssh_dir_path(workspace, config):
+    """Extended security: .ssh/ paths must be blocked in command or output."""
+    should_skip, reason = safety.should_skip("cat ~/.ssh/config", "Host github.com\n" * 20, workspace, config)
+    assert should_skip is True
+    assert "security" in reason
+
+
+def test_blocks_echo_shell_variable(workspace, config):
+    """Extended security: echo $VAR must be blocked."""
+    should_skip, reason = safety.should_skip("echo $SECRET", "secret_value_123\n" * 20, workspace, config)
+    assert should_skip is True
+    assert "security" in reason
+
+
+def test_blocks_history_command(workspace, config):
+    """Extended security: history command must be blocked."""
+    should_skip, reason = safety.should_skip("history", "1 git log\n2 ls\n" * 20, workspace, config)
+    assert should_skip is True
+    assert "security" in reason

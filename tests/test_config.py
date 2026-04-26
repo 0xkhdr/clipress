@@ -1,18 +1,5 @@
-from ruamel.yaml import YAML
+import yaml
 from clipress import config
-
-
-class _YamlWrapper:
-    @staticmethod
-    def safe_load(stream):
-        return YAML(typ="safe").load(stream)
-
-    @staticmethod
-    def dump(data, stream):
-        YAML(typ="safe").dump(data, stream)
-
-
-yaml = _YamlWrapper()
 
 
 def test_config_deep_merge():

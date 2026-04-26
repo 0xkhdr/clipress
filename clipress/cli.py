@@ -6,8 +6,8 @@ import json
 import shutil
 import threading
 import time
+import yaml
 from pathlib import Path
-from ruamel.yaml import YAML
 from clipress.engine import compress, get_stream_handler
 from clipress.learner import Learner
 from clipress.config import get_config, validate_config_file, ConfigError, clear_cache
@@ -783,11 +783,10 @@ def error_passthrough(state):
     comp_dir.mkdir(mode=0o700, exist_ok=True)
     config_path = comp_dir / "config.yaml"
 
-    yaml = YAML()
     config = {}
     if config_path.exists():
         with open(config_path, "r", encoding="utf-8") as f:
-            config = yaml.load(f) or {}
+            config = yaml.safe_load(f) or {}
 
     if "engine" not in config:
         config["engine"] = {}
@@ -795,7 +794,7 @@ def error_passthrough(state):
     config["engine"]["pass_through_on_error"] = (state == "on")
 
     with open(config_path, "w", encoding="utf-8") as f:
-        yaml.dump(config, f)
+        yaml.dump(config, f, default_flow_style=False)
 
     clear_cache()
     click.echo(f"Set pass_through_on_error to {state == 'on'} in {config_path}")
