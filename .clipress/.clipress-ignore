@@ -1,7 +1,0 @@
-# Commands listed here are passed through without compression.
-# One command prefix per line. Lines starting with # are comments.
-#
-# Examples:
-# kubectl exec
-# psql
-# mysql
