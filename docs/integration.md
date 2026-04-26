@@ -62,6 +62,30 @@ The same `hook.sh` is shared between Claude Code and Gemini CLI. The `post_tool_
 
 ---
 
+## Codex CLI
+
+`clipress init` registers a `PostToolUse` hook in **`.codex/hooks.json`** in your project directory.
+
+### Hook entry written to `.codex/hooks.json`
+
+```json
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [{ "type": "command", "command": "/your/project/.clipress/hook.sh" }]
+      }
+    ]
+  }
+}
+```
+
+The same `hook.sh` is used for Codex too. The hook handler detects Codex payloads and returns a Codex-compatible envelope:
+- Codex CLI: `{"decision": "block", "reason": "compressed output"}`
+
+---
+
 ## How `hook.sh` Works
 
 `clipress init` writes a small shell script to `.clipress/hook.sh` (or `~/.clipress/hook.sh` for global init). The agent settings point to this script, not to the clipress binary directly. At runtime the script discovers clipress using this priority order:
@@ -91,7 +115,7 @@ This means compression works correctly in **subdirectories** of a project — yo
 
 ## Shell-Based Agents
 
-For agents without a native hook system (Codex, Cursor terminal, etc.), source the shell hook and set `CLIPRESS_AGENT_MODE=true`:
+For agents without a native hook system (Cursor terminal, etc.), source the shell hook and set `CLIPRESS_AGENT_MODE=true`:
 
 ```bash
 export CLIPRESS_AGENT_MODE=true
@@ -138,10 +162,24 @@ clipress init
 
 # Global fallback for projects without a local workspace
 clipress init --global
-# ~/.claude/settings.json and ~/.gemini/settings.json updated
+# ~/.claude/settings.json, ~/.gemini/settings.json, and ~/.codex/hooks.json updated
 ```
 
 Per-project workspaces take priority over the global workspace. Use `clipress status` in any project to see which workspace is active.
+
+---
+
+## Provider Selection
+
+By default `clipress init` configures all supported providers (`claude`, `gemini`, `codex`).
+
+To scope setup to specific providers:
+
+```bash
+clipress init --provider codex
+clipress init --provider claude --provider gemini
+clipress init --global --provider codex
+```
 
 ---
 

@@ -7,6 +7,7 @@ import shutil
 import threading
 import time
 import yaml
+from dataclasses import dataclass
 from pathlib import Path
 from clipress.engine import compress, get_stream_handler
 from clipress.learner import Learner
@@ -38,17 +39,26 @@ def status():
 
 
 @main.command()
-@click.option("--global", "global_", is_flag=True, help="Install global hooks in ~/.claude and ~/.gemini instead of project-local")
-def init(global_):
+@click.option("--global", "global_", is_flag=True, help="Install global hooks in home directories instead of project-local.")
+@click.option(
+    "--provider",
+    "providers",
+    multiple=True,
+    type=click.Choice(["all", "claude", "gemini", "codex"], case_sensitive=False),
+    help="Provider(s) to configure. Repeat flag for multiple. Default: all.",
+)
+def init(global_, providers):
     """Initializes .clipress/ and agent hooks."""
+    selected = _normalize_providers(providers)
+
     if global_:
-        _register_global_claude_hook()
-        _register_global_gemini_hook()
+        for provider in selected:
+            _register_global_provider_hook(provider)
         # Remove any local hooks from CWD to avoid double-compression
-        _unregister_claude_hook(os.getcwd())
-        _unregister_gemini_hook(os.getcwd())
+        for provider in selected:
+            _unregister_provider_hook(provider, os.getcwd())
         click.echo("Initialized clipress globally.")
-        click.echo("Hooks are active for all Claude Code and Gemini CLI projects.")
+        click.echo(f"Hooks are active for: {', '.join(_PROVIDER_SPECS[p].display_name for p in selected)}.")
         return
 
     workspace = os.getcwd()
@@ -115,9 +125,9 @@ def init(global_):
         )
         click.echo("  Created .clipress/.clipress-ignore")
 
-    _register_claude_hook(workspace)
-    _register_gemini_hook(workspace)
-    _remove_global_claude_hook(silent=False)
+    for provider in selected:
+        _register_provider_hook(provider, workspace)
+        _remove_global_provider_hook(provider, silent=False)
     click.echo("Initialized clipress in this directory.")
 
 
@@ -163,6 +173,62 @@ exit 0
 _GLOBAL_CLIPRESS_DIR = Path.home() / ".clipress"
 
 
+@dataclass(frozen=True)
+class _ProviderSpec:
+    key: str
+    display_name: str
+    local_settings_relpath: str
+    global_settings_relpath: str
+    matcher: str
+    event_name: str
+    stale_events: tuple[str, ...] = ()
+
+
+_PROVIDER_ORDER = ("claude", "gemini", "codex")
+_PROVIDER_SPECS: dict[str, _ProviderSpec] = {
+    "claude": _ProviderSpec(
+        key="claude",
+        display_name="Claude Code",
+        local_settings_relpath=".claude/settings.json",
+        global_settings_relpath=".claude/settings.json",
+        matcher="Bash",
+        event_name="PostToolUse",
+    ),
+    "gemini": _ProviderSpec(
+        key="gemini",
+        display_name="Gemini CLI",
+        local_settings_relpath=".gemini/settings.json",
+        global_settings_relpath=".gemini/settings.json",
+        matcher="run_shell_command",
+        event_name="AfterTool",
+        stale_events=("PostToolUse",),
+    ),
+    "codex": _ProviderSpec(
+        key="codex",
+        display_name="Codex CLI",
+        local_settings_relpath=".codex/hooks.json",
+        global_settings_relpath=".codex/hooks.json",
+        matcher="Bash",
+        event_name="PostToolUse",
+    ),
+}
+
+
+def _normalize_providers(values) -> tuple[str, ...]:
+    if not values:
+        return _PROVIDER_ORDER
+    normalized = [v.lower() for v in values]
+    if "all" in normalized:
+        return _PROVIDER_ORDER
+    seen = set()
+    selected: list[str] = []
+    for key in _PROVIDER_ORDER:
+        if key in normalized and key not in seen:
+            selected.append(key)
+            seen.add(key)
+    return tuple(selected) if selected else _PROVIDER_ORDER
+
+
 def _write_hook_script(target_dir: Path) -> Path:
     """Write the runtime-discovery hook.sh to target_dir; return its path."""
     target_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -179,6 +245,14 @@ def _is_clipress_hook(cmd: str) -> bool:
         or "clipress.hooks.post_tool_use" in cmd
         or ".clipress/hook.sh" in cmd
     )
+
+
+def _provider_local_path(spec: _ProviderSpec, workspace: str) -> Path:
+    return Path(workspace) / spec.local_settings_relpath
+
+
+def _provider_global_path(spec: _ProviderSpec) -> Path:
+    return Path.home() / spec.global_settings_relpath
 
 
 def _write_hook_to_settings(
@@ -265,103 +339,120 @@ def _remove_hook_from_settings(settings_path: Path, matcher: str, label: str, ev
     return True
 
 
-def _register_claude_hook(workspace: str) -> None:
-    """Adds the PostToolUse hook to .claude/settings.json in the project workspace."""
+def _register_provider_hook(provider: str, workspace: str) -> None:
+    spec = _PROVIDER_SPECS[provider]
     comp_dir = Path(workspace) / ".clipress"
     comp_dir.mkdir(mode=0o700, exist_ok=True)
-    hook_script = _write_hook_script(comp_dir)
-
-    claude_dir = Path(workspace) / ".claude"
-    claude_dir.mkdir(mode=0o700, exist_ok=True)
-    settings_path = claude_dir / "settings.json"
+    _write_hook_script(comp_dir)
+    settings_path = _provider_local_path(spec, workspace)
+    settings_path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    label = spec.local_settings_relpath
     try:
-        _write_hook_to_settings(settings_path, "Bash", ".claude/settings.json", hook_command="./.clipress/hook.sh")
+        for stale_event in spec.stale_events:
+            _remove_hook_from_settings(settings_path, spec.matcher, label, event_name=stale_event)
+        _write_hook_to_settings(
+            settings_path,
+            spec.matcher,
+            label,
+            event_name=spec.event_name,
+            hook_command="./.clipress/hook.sh",
+        )
     except Exception as e:
-        click.echo(f"  Warning: Could not register Claude Code hook: {e}")
+        click.echo(f"  Warning: Could not register {spec.display_name} hook: {e}")
 
-    # If the global hook still exists, remove it to prevent double compression.
-    _remove_global_claude_hook(silent=False)
+
+def _unregister_provider_hook(provider: str, workspace: str) -> None:
+    spec = _PROVIDER_SPECS[provider]
+    settings_path = _provider_local_path(spec, workspace)
+    label = spec.local_settings_relpath
+    try:
+        _remove_hook_from_settings(settings_path, spec.matcher, label, event_name=spec.event_name)
+        for stale_event in spec.stale_events:
+            _remove_hook_from_settings(settings_path, spec.matcher, label, event_name=stale_event)
+    except Exception as e:
+        click.echo(f"  Warning: Could not unregister {spec.display_name} hook: {e}")
+
+
+def _register_global_provider_hook(provider: str) -> None:
+    spec = _PROVIDER_SPECS[provider]
+    hook_script = _write_hook_script(_GLOBAL_CLIPRESS_DIR)
+    global_path = _provider_global_path(spec)
+    global_path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    label = f"~/{spec.global_settings_relpath} (global)"
+    try:
+        for stale_event in spec.stale_events:
+            _remove_hook_from_settings(global_path, spec.matcher, label, event_name=stale_event)
+        _write_hook_to_settings(
+            global_path,
+            spec.matcher,
+            label,
+            event_name=spec.event_name,
+            hook_command=str(hook_script),
+        )
+    except Exception as e:
+        click.echo(f"  Warning: Could not register global {spec.display_name} hook: {e}")
+
+
+def _remove_global_provider_hook(provider: str, silent: bool = True) -> None:
+    spec = _PROVIDER_SPECS[provider]
+    global_path = _provider_global_path(spec)
+    label = f"~/{spec.global_settings_relpath} (global)"
+    try:
+        removed = _remove_hook_from_settings(global_path, spec.matcher, label, event_name=spec.event_name)
+        for stale_event in spec.stale_events:
+            _remove_hook_from_settings(global_path, spec.matcher, label, event_name=stale_event)
+        if removed and not silent:
+            click.echo(f"  Note: Removed global {spec.display_name} hook to prevent double compression.")
+    except Exception:
+        pass
+
+
+def _register_claude_hook(workspace: str) -> None:
+    _register_provider_hook("claude", workspace)
 
 
 def _unregister_claude_hook(workspace: str) -> None:
-    """Removes the PostToolUse hook from .claude/settings.json in the project workspace."""
-    settings_path = Path(workspace) / ".claude" / "settings.json"
-    try:
-        _remove_hook_from_settings(settings_path, "Bash", ".claude/settings.json")
-    except Exception as e:
-        click.echo(f"  Warning: Could not unregister Claude Code hook: {e}")
+    _unregister_provider_hook("claude", workspace)
 
 
 def _remove_global_claude_hook(silent: bool = True) -> None:
-    """Removes the PostToolUse hook from the global ~/.claude/settings.json if present."""
-    global_path = Path.home() / ".claude" / "settings.json"
-    try:
-        removed = _remove_hook_from_settings(global_path, "Bash", "~/.claude/settings.json (global)")
-        if removed and not silent:
-            click.echo("  Note: Removed global hook to prevent double compression.")
-    except Exception:
-        pass
+    _remove_global_provider_hook("claude", silent=silent)
 
 
 def _register_gemini_hook(workspace: str) -> None:
-    """Adds the AfterTool hook to .gemini/settings.json in the project workspace."""
-    comp_dir = Path(workspace) / ".clipress"
-    comp_dir.mkdir(mode=0o700, exist_ok=True)
-    hook_script = _write_hook_script(comp_dir)
-
-    gemini_dir = Path(workspace) / ".gemini"
-    gemini_dir.mkdir(mode=0o700, exist_ok=True)
-    settings_path = gemini_dir / "settings.json"
-    try:
-        # Remove stale "PostToolUse" key written by older versions of clipress.
-        _remove_hook_from_settings(settings_path, "run_shell_command", ".gemini/settings.json", event_name="PostToolUse")
-        _write_hook_to_settings(settings_path, "run_shell_command", ".gemini/settings.json", event_name="AfterTool", hook_command="./.clipress/hook.sh")
-    except Exception as e:
-        click.echo(f"  Warning: Could not register Gemini CLI hook: {e}")
+    _register_provider_hook("gemini", workspace)
 
 
 def _unregister_gemini_hook(workspace: str) -> None:
-    """Removes the AfterTool hook from .gemini/settings.json in the project workspace."""
-    settings_path = Path(workspace) / ".gemini" / "settings.json"
-    try:
-        _remove_hook_from_settings(settings_path, "run_shell_command", ".gemini/settings.json", event_name="AfterTool")
-        # Also clean up stale "PostToolUse" key if present from older versions.
-        _remove_hook_from_settings(settings_path, "run_shell_command", ".gemini/settings.json", event_name="PostToolUse")
-    except Exception as e:
-        click.echo(f"  Warning: Could not unregister Gemini CLI hook: {e}")
-
-
-def _register_global_claude_hook() -> None:
-    """Adds the PostToolUse hook to ~/.claude/settings.json."""
-    hook_script = _write_hook_script(_GLOBAL_CLIPRESS_DIR)
-    global_path = Path.home() / ".claude" / "settings.json"
-    global_path.parent.mkdir(mode=0o700, exist_ok=True)
-    try:
-        _write_hook_to_settings(global_path, "Bash", "~/.claude/settings.json (global)", hook_command=str(hook_script))
-    except Exception as e:
-        click.echo(f"  Warning: Could not register global Claude Code hook: {e}")
-
-
-def _register_global_gemini_hook() -> None:
-    """Adds the AfterTool hook to ~/.gemini/settings.json."""
-    hook_script = _write_hook_script(_GLOBAL_CLIPRESS_DIR)
-    global_path = Path.home() / ".gemini" / "settings.json"
-    global_path.parent.mkdir(mode=0o700, exist_ok=True)
-    try:
-        _write_hook_to_settings(global_path, "run_shell_command", "~/.gemini/settings.json (global)", event_name="AfterTool", hook_command=str(hook_script))
-    except Exception as e:
-        click.echo(f"  Warning: Could not register global Gemini CLI hook: {e}")
+    _unregister_provider_hook("gemini", workspace)
 
 
 def _remove_global_gemini_hook(silent: bool = True) -> None:
-    """Removes the AfterTool hook from the global ~/.gemini/settings.json if present."""
-    global_path = Path.home() / ".gemini" / "settings.json"
-    try:
-        removed = _remove_hook_from_settings(global_path, "run_shell_command", "~/.gemini/settings.json (global)", event_name="AfterTool")
-        if removed and not silent:
-            click.echo("  Note: Removed global Gemini hook to prevent double compression.")
-    except Exception:
-        pass
+    _remove_global_provider_hook("gemini", silent=silent)
+
+
+def _register_codex_hook(workspace: str) -> None:
+    _register_provider_hook("codex", workspace)
+
+
+def _unregister_codex_hook(workspace: str) -> None:
+    _unregister_provider_hook("codex", workspace)
+
+
+def _register_global_claude_hook() -> None:
+    _register_global_provider_hook("claude")
+
+
+def _register_global_gemini_hook() -> None:
+    _register_global_provider_hook("gemini")
+
+
+def _register_global_codex_hook() -> None:
+    _register_global_provider_hook("codex")
+
+
+def _remove_global_codex_hook(silent: bool = True) -> None:
+    _remove_global_provider_hook("codex", silent=silent)
 
 
 @main.group()
@@ -862,8 +953,10 @@ def uninstall(yes, keep_data):
 
     _unregister_claude_hook(workspace)
     _unregister_gemini_hook(workspace)
+    _unregister_codex_hook(workspace)
     _remove_global_claude_hook(silent=False)
     _remove_global_gemini_hook(silent=False)
+    _remove_global_codex_hook(silent=False)
 
     if not keep_data and comp_dir.exists():
         shutil.rmtree(comp_dir)

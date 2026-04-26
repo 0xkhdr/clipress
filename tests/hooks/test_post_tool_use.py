@@ -83,6 +83,15 @@ def test_hook_passes_through_already_transformed_gemini_output():
     assert parsed["reason"] == "compressed"
 
 
+def test_hook_passes_through_already_transformed_codex_output():
+    already_compressed = json.dumps({"decision": "block", "reason": "compressed"})
+    code, out = _invoke_hook(already_compressed, "/tmp")
+    assert code == 0
+    parsed = json.loads(out)
+    assert parsed["decision"] == "block"
+    assert parsed["reason"] == "compressed"
+
+
 def test_hook_compresses_bash_output(tmp_path):
     big_output = "file.txt\n" * 50
     data = json.dumps({
@@ -97,6 +106,23 @@ def test_hook_compresses_bash_output(tmp_path):
     assert "content" in parsed
     # Compressed output should be shorter
     assert len(parsed["content"]) <= len(big_output)
+
+
+def test_hook_compresses_codex_bash_output(tmp_path):
+    big_output = "file.txt\n" * 50
+    data = json.dumps({
+        "turn_id": "t_123",
+        "tool_use_id": "u_123",
+        "tool_name": "Bash",
+        "tool_input": {"command": "ls"},
+        "tool_response": {"output": big_output},
+    })
+    code, out = _invoke_hook(data, str(tmp_path))
+    assert code == 0
+    parsed = json.loads(out)
+    assert parsed["decision"] == "block"
+    assert "reason" in parsed
+    assert len(parsed["reason"]) <= len(big_output)
 
 
 def test_find_workspace_root_finds_git(tmp_path):

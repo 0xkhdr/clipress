@@ -96,8 +96,10 @@ your-project/
 │       └── example.yaml.disabled
 ├── .claude/
 │   └── settings.json          # PostToolUse hook for Claude Code
-└── .gemini/
+├── .gemini/
     └── settings.json          # AfterTool hook for Gemini CLI
+└── .codex/
+    └── hooks.json             # PostToolUse hook for Codex CLI
 ```
 
 ### Global initialization
@@ -108,7 +110,7 @@ Install hooks globally so all projects are covered without per-project init:
 clipress init --global
 ```
 
-This writes hooks into `~/.claude/settings.json` and `~/.gemini/settings.json` and removes any existing local project hooks to prevent double compression.
+This writes hooks into `~/.claude/settings.json`, `~/.gemini/settings.json`, and `~/.codex/hooks.json`, and removes any existing local project hooks to prevent double compression.
 
 > `clipress init` automatically removes any global hook if a local one is being installed. `clipress init --global` removes local project hooks. The two modes are mutually exclusive.
 
@@ -116,7 +118,7 @@ This writes hooks into `~/.claude/settings.json` and `~/.gemini/settings.json` a
 
 ## First Use
 
-After `clipress init`, compression is **automatic** for Claude Code and Gemini CLI — no further steps needed.
+After `clipress init`, compression is **automatic** for Claude Code, Gemini CLI, and Codex CLI — no further steps needed.
 
 To test manually:
 

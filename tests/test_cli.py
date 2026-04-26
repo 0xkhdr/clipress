@@ -221,3 +221,33 @@ def test_unregister_claude_hook(runner, tmp_path, monkeypatch):
     with open(settings_path, "r") as f:
         settings = json.load(f)
     assert "hooks" not in settings or "PostToolUse" not in settings.get("hooks", {})
+
+
+def test_register_codex_hook(runner, tmp_path, monkeypatch):
+    fake_home = tmp_path / "home"
+    fake_home.mkdir()
+    monkeypatch.setattr(Path, "home", lambda: fake_home)
+    monkeypatch.chdir(tmp_path)
+
+    result = runner.invoke(main, ["init"])
+    assert result.exit_code == 0
+
+    settings_path = tmp_path / ".codex" / "hooks.json"
+    assert settings_path.exists()
+
+    with open(settings_path, "r") as f:
+        settings = json.load(f)
+    assert settings["hooks"]["PostToolUse"][0]["matcher"] == "Bash"
+
+
+def test_init_provider_flag_scopes_hooks(runner, tmp_path, monkeypatch):
+    fake_home = tmp_path / "home"
+    fake_home.mkdir()
+    monkeypatch.setattr(Path, "home", lambda: fake_home)
+    monkeypatch.chdir(tmp_path)
+
+    result = runner.invoke(main, ["init", "--provider", "codex"])
+    assert result.exit_code == 0
+    assert (tmp_path / ".codex" / "hooks.json").exists()
+    assert not (tmp_path / ".claude" / "settings.json").exists()
+    assert not (tmp_path / ".gemini" / "settings.json").exists()

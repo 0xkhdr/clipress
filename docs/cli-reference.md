@@ -5,7 +5,8 @@
 | Command | Description |
 | :--- | :--- |
 | `clipress init` | Create `.clipress/` in the current directory and install local agent hooks |
-| `clipress init --global` | Install agent hooks globally in `~/.claude/` and `~/.gemini/`; remove any local project hooks |
+| `clipress init --global` | Install agent hooks globally in `~/.claude/`, `~/.gemini/`, and `~/.codex/`; remove any local project hooks |
+| `clipress init --provider codex` | Configure only selected provider(s); repeat `--provider` to add more |
 | `clipress compress "<cmd>"` | Read stdin, compress, write to stdout |
 | `clipress compress "<cmd>" --no-compress` | Read stdin, pass through unchanged |
 | `clipress compress "<cmd>" --workspace <path>` | Use a specific workspace directory (default: CWD) |
@@ -34,6 +35,10 @@
 # Project-local init (recommended)
 cd your-project
 clipress init
+
+# Scope init to specific providers
+clipress init --provider codex
+clipress init --provider claude --provider gemini
 
 # Global init — covers all projects
 clipress init --global

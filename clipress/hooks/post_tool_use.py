@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Claude Code / Gemini CLI post-tool-use hook for clipress.
-Registered in .claude/settings.json (Claude Code) and .gemini/settings.json (Gemini CLI).
+Claude Code / Gemini CLI / Codex CLI post-tool-use hook for clipress.
+Registered in .claude/settings.json, .gemini/settings.json, and .codex/hooks.json.
 Receives hook data via stdin as JSON, writes compressed output to stdout as JSON.
 
 Claude Code (PostToolUse) input:
@@ -13,6 +13,11 @@ Gemini CLI (AfterTool) input:
   { "tool_name": "run_shell_command", "tool_input": {"command": "..."}, "tool_response": {"llmContent": "...", "returnDisplay": "..."} }
 Gemini CLI output:
   { "decision": "deny", "reason": "compressed output" }
+
+Codex CLI (PostToolUse) input:
+  { "turn_id": "...", "tool_use_id": "...", "tool_name": "Bash", "tool_input": {"command": "..."}, "tool_response": {"output": "..."} }
+Codex CLI output:
+  { "decision": "block", "reason": "compressed output" }
 """
 
 import sys
@@ -47,7 +52,7 @@ def main():
     # If another hook already transformed the output, pass it through unchanged.
     # This prevents double-compression when both global and project hooks exist.
     if tool_name is None:
-        if data.get("type") == "tool_result" or data.get("decision") == "deny":
+        if data.get("type") == "tool_result" or data.get("decision") in {"deny", "block"}:
             print(json.dumps(data))
         sys.exit(0)
 
@@ -55,6 +60,8 @@ def main():
         sys.exit(0)
 
     is_gemini = tool_name == "run_shell_command"
+    # Codex PostToolUse payload includes turn_id/tool_use_id fields.
+    is_codex = "turn_id" in data and "tool_use_id" in data
 
     command = data.get("tool_input", {}).get("command", "")
     tool_response = data.get("tool_response", {})
@@ -105,6 +112,9 @@ def main():
 
     if is_gemini:
         print(json.dumps({"decision": "deny", "reason": compressed}))
+    elif is_codex:
+        # In Codex PostToolUse, block+reason replaces tool result with our output.
+        print(json.dumps({"decision": "block", "reason": compressed}))
     else:
         print(json.dumps({"type": "tool_result", "content": compressed}))
     sys.exit(0)

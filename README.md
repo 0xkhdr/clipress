@@ -38,7 +38,7 @@ curl -sSL https://raw.githubusercontent.com/0xkhdr/clipress/main/install.sh | ba
 ## Quick Start
 
 ```bash
-# Initialize a workspace (writes hooks into .claude/ and .gemini/)
+# Initialize a workspace (writes hooks into .claude/, .gemini/, and .codex/)
 cd your-project
 clipress init
 
@@ -55,7 +55,7 @@ clipress status
 clipress restore
 ```
 
-After `clipress init`, compression is **automatic** — every bash command run by Claude Code or Gemini CLI is intercepted by the installed hook with no further setup.
+After `clipress init`, compression is **automatic** for Claude Code, Gemini CLI, and Codex CLI shell calls.
 
 ---
 
@@ -96,7 +96,9 @@ Full pipeline details: [docs/compression.md](docs/compression.md)
 
 **Gemini CLI** — `clipress init` writes an `AfterTool` hook into `.gemini/settings.json`. Every `run_shell_command` call is automatically compressed.
 
-**Shell agents** (Codex, Cursor terminal, etc.) — source `.clipress/shell_hook.sh` and set `CLIPRESS_AGENT_MODE=true`.
+**Codex CLI** — `clipress init` writes a `PostToolUse` hook into `.codex/hooks.json`. `Bash` tool output is compressed before model continuation.
+
+**Other shell agents** (Cursor terminal, etc.) — source `.clipress/shell_hook.sh` and set `CLIPRESS_AGENT_MODE=true`.
 
 See [docs/integration.md](docs/integration.md) for full hook details.
 
