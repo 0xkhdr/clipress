@@ -142,10 +142,16 @@ def _write_hook_to_settings(
     for h in event_hooks:
         if h.get("matcher") == matcher:
             for sub in h.get("hooks", []):
-                # Accept both the bare and full-path forms as "already present"
                 existing_cmd = sub.get("command", "")
-                if existing_cmd == cmd or existing_cmd.endswith("clipress hook"):
-                    return False  # already present
+                if existing_cmd == cmd:
+                    return False  # already present with identical command
+                if existing_cmd.endswith("clipress hook"):
+                    # Upgrade bare "clipress hook" → full resolved path
+                    sub["command"] = cmd
+                    with open(settings_path, "w", encoding="utf-8") as f:
+                        json.dump(settings, f, indent=2)
+                    click.echo(f"  Updated {event_name} hook command in {label}")
+                    return True
 
     event_hooks.append({"matcher": matcher, "hooks": [{"type": "command", "command": cmd}]})
     with open(settings_path, "w", encoding="utf-8") as f:
