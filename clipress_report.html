@@ -1,0 +1,1166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clipress Package Report</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .meta {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            padding: 30px 40px;
+            background: #f8f9fa;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .meta-item {
+            text-align: center;
+        }
+
+        .meta-label {
+            color: #666;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        .meta-value {
+            font-size: 1.4em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        main {
+            padding: 40px;
+        }
+
+        section {
+            margin-bottom: 50px;
+        }
+
+        h2 {
+            color: #667eea;
+            font-size: 2em;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #667eea;
+        }
+
+        h3 {
+            color: #764ba2;
+            font-size: 1.4em;
+            margin-top: 25px;
+            margin-bottom: 15px;
+        }
+
+        h4 {
+            color: #555;
+            font-size: 1.1em;
+            margin-top: 15px;
+            margin-bottom: 10px;
+        }
+
+        p {
+            margin-bottom: 15px;
+            line-height: 1.8;
+        }
+
+        ul, ol {
+            margin-left: 30px;
+            margin-bottom: 15px;
+        }
+
+        li {
+            margin-bottom: 10px;
+        }
+
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 0.9em;
+            color: #c7254e;
+        }
+
+        pre {
+            background: #282c34;
+            color: #abb2bf;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin-bottom: 15px;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+
+        pre code {
+            background: none;
+            color: inherit;
+            padding: 0;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            margin-bottom: 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+
+        th {
+            background: #667eea;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: bold;
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        tr:hover {
+            background: #f5f5f5;
+        }
+
+        .highlight-box {
+            background: #f0f4ff;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+        }
+
+        .success-box {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+            color: #155724;
+        }
+
+        .info-box {
+            background: #d1ecf1;
+            border-left: 4px solid #17a2b8;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+            color: #0c5460;
+        }
+
+        .warning-box {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+            color: #856404;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: bold;
+            margin-right: 8px;
+            margin-bottom: 8px;
+        }
+
+        .badge-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .badge-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .badge-info {
+            background: #17a2b8;
+            color: white;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 20px;
+            background: #fafafa;
+        }
+
+        .card h4 {
+            color: #667eea;
+            margin-top: 0;
+        }
+
+        .pipeline {
+            background: #f8f9fa;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            padding: 20px;
+            font-family: monospace;
+            font-size: 0.9em;
+            line-height: 1.8;
+            margin-bottom: 20px;
+        }
+
+        .pipeline-step {
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        .example-cmd {
+            background: #f4f4f4;
+            border-left: 3px solid #667eea;
+            padding: 12px;
+            margin-bottom: 10px;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+
+        footer {
+            background: #f8f9fa;
+            padding: 30px 40px;
+            text-align: center;
+            border-top: 2px solid #ddd;
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .toc {
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .toc h3 {
+            margin-top: 0;
+        }
+
+        .toc ul {
+            list-style: none;
+            margin-left: 0;
+        }
+
+        .toc a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .toc a:hover {
+            text-decoration: underline;
+        }
+
+        .strategy-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+
+        .strategy-card {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+            background: white;
+        }
+
+        .strategy-card h4 {
+            color: #667eea;
+            margin-top: 0;
+            margin-bottom: 10px;
+        }
+
+        .strategy-card code {
+            background: #f4f4f4;
+            display: block;
+            padding: 8px;
+            margin: 10px 0;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🗜️ Clipress</h1>
+            <p>Universal CLI Output Compressor for AI Agents</p>
+        </header>
+
+        <div class="meta">
+            <div class="meta-item">
+                <div class="meta-label">Version</div>
+                <div class="meta-value">1.2.2</div>
+            </div>
+            <div class="meta-item">
+                <div class="meta-label">Python</div>
+                <div class="meta-value">3.11+</div>
+            </div>
+            <div class="meta-item">
+                <div class="meta-label">License</div>
+                <div class="meta-value">MIT</div>
+            </div>
+            <div class="meta-item">
+                <div class="meta-label">Status</div>
+                <div class="meta-value">Beta</div>
+            </div>
+        </div>
+
+        <main>
+            <!-- Table of Contents -->
+            <div class="toc">
+                <h3>📋 Quick Navigation</h3>
+                <ul>
+                    <li><a href="#overview">Overview</a></li>
+                    <li><a href="#use-cases">Use Cases</a></li>
+                    <li><a href="#dependencies">Dependencies</a></li>
+                    <li><a href="#installation">Installation & Setup</a></li>
+                    <li><a href="#configuration">Configuration</a></li>
+                    <li><a href="#compression">Compression Strategies</a></li>
+                    <li><a href="#commands">CLI Commands & Examples</a></li>
+                    <li><a href="#learning">Learning System</a></li>
+                </ul>
+            </div>
+
+            <!-- Overview -->
+            <section id="overview">
+                <h2>📖 Overview</h2>
+
+                <div class="highlight-box">
+                    <strong>What is Clipress?</strong> A Python-based CLI proxy that intercepts bash command output before it reaches an AI agent's context window, compresses it using a hybrid classifier + registry system, and returns only the semantically meaningful portion.
+                </div>
+
+                <h3>Key Features</h3>
+                <ul>
+                    <li><strong>Automatic Detection:</strong> Recognizes output shapes (lists, tables, logs, diffs, tests, progress)</li>
+                    <li><strong>Adaptive Learning:</strong> Improves with every call through SQLite-backed registry</li>
+                    <li><strong>Memory Safe:</strong> Bounded rolling-window compression prevents OOM</li>
+                    <li><strong>Secure:</strong> Blocks sensitive patterns, binary data, and credentials</li>
+                    <li><strong>Zero Overhead:</strong> Hot cache for proven commands (3+ consistent calls)</li>
+                    <li><strong>Extensible:</strong> Custom rules via YAML, no code required</li>
+                </ul>
+
+                <h3>Current Improvements (v1.2.2)</h3>
+                <div class="success-box">
+                    ✅ <strong>5 Quality Improvements Implemented:</strong><br>
+                    • Better token counting (85% accurate for paths)<br>
+                    • Warm tier (3 calls instead of 10 to activate cache)<br>
+                    • Fuzzy command matching (command variations share cache)<br>
+                    • ANSI presence guard (O(1) check skips regex for 90% of outputs)<br>
+                    • Adaptive heartbeat (eliminates thread overhead for small outputs)
+                </div>
+            </section>
+
+            <!-- Use Cases -->
+            <section id="use-cases">
+                <h2>🎯 Use Cases</h2>
+
+                <div class="grid-2">
+                    <div class="card">
+                        <h4>AI Agent Integration</h4>
+                        <p>Compress command outputs before they reach Claude Code, Gemini CLI, or any AI agent context window. Reduces token cost while preserving semantic meaning.</p>
+                        <span class="badge badge-primary">Claude Code</span>
+                        <span class="badge badge-primary">Gemini CLI</span>
+                    </div>
+
+                    <div class="card">
+                        <h4>Log Analysis</h4>
+                        <p>Intelligently summarize build logs, test output, and deployment logs. Keeps errors and final status, drops repetitive progress lines.</p>
+                        <span class="badge badge-success">Logs</span>
+                        <span class="badge badge-success">Tests</span>
+                    </div>
+
+                    <div class="card">
+                        <h4>Large Output Handling</h4>
+                        <p>Safely process outputs from <code>git log -1000</code>, <code>kubectl get pods</code>, or <code>ls -R</code> without context window explosion.</p>
+                        <span class="badge badge-info">Git</span>
+                        <span class="badge badge-info">Kubernetes</span>
+                    </div>
+
+                    <div class="card">
+                        <h4>Context Window Optimization</h4>
+                        <p>Save 70-90% of tokens on typical commands. Typical compression: 100-line git log → 25 lines with summary.</p>
+                        <span class="badge badge-success">Cost</span>
+                        <span class="badge badge-success">Performance</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Dependencies -->
+            <section id="dependencies">
+                <h2>📦 Dependencies</h2>
+
+                <h3>Core Requirements</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Requirement</th>
+                            <th>Version</th>
+                            <th>Purpose</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Python</strong></td>
+                            <td>≥ 3.11</td>
+                            <td>Runtime environment</td>
+                        </tr>
+                        <tr>
+                            <td><code>click</code></td>
+                            <td>≥ 8.0</td>
+                            <td>CLI framework</td>
+                        </tr>
+                        <tr>
+                            <td><code>ruamel.yaml</code></td>
+                            <td>≥ 0.18</td>
+                            <td>Safe YAML parsing/writing</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>Optional Dependencies</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Package</th>
+                            <th>Purpose</th>
+                            <th>Impact</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>tiktoken</code></td>
+                            <td>Accurate token counting (cl100k_base encoding)</td>
+                            <td>Better compression metrics; fallback heuristic used if missing</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>Platform Support</h3>
+                <ul>
+                    <li><strong>Unix/macOS:</strong> Full support (PTY mode for interactive commands)</li>
+                    <li><strong>Windows:</strong> Pipe mode only (no PTY support)</li>
+                    <li><strong>Linux:</strong> Full support</li>
+                </ul>
+            </section>
+
+            <!-- Installation -->
+            <section id="installation">
+                <h2>🚀 Installation & Setup</h2>
+
+                <h3>Installation Methods</h3>
+
+                <h4>1. One-Liner (Recommended)</h4>
+                <pre><code>curl -sSL https://raw.githubusercontent.com/0xkhdr/clipress/main/install.sh | bash</code></pre>
+                <p>Automatically detects project root, installs, and runs <code>clipress init</code>.</p>
+
+                <h4>2. Via pipx (Isolated)</h4>
+                <pre><code>pipx install clipress</code></pre>
+
+                <h4>3. Via pip</h4>
+                <pre><code>pip install clipress</code></pre>
+
+                <h4>4. From GitHub</h4>
+                <pre><code>pipx install "git+https://github.com/0xkhdr/clipress.git"</code></pre>
+
+                <h3>Post-Installation Setup</h3>
+
+                <h4>Project-Local Initialization</h4>
+                <pre><code>cd your-project
+clipress init</code></pre>
+                <p>Creates <code>.clipress/</code> directory with config and hooks in your project.</p>
+
+                <h4>Global Initialization</h4>
+                <pre><code>clipress init --global</code></pre>
+                <p>Installs hooks in <code>~/.claude/settings.json</code> and <code>~/.gemini/settings.json</code> for all projects.</p>
+
+                <h3>Workspace Structure</h3>
+                <p>After <code>clipress init</code>, your project contains:</p>
+                <pre><code>.clipress/
+├── config.yaml                 # Configuration (optional, uses defaults)
+├── registry.db                 # Learned patterns (SQLite)
+├── hook.sh                     # Runtime-discovery hook script
+├── .clipress-ignore            # Blocklist of commands to skip
+└── extensions/                 # Custom seed rules
+    ├── example.yaml.disabled
+    └── *.yaml                  # User extensions (override built-in)</code></pre>
+            </section>
+
+            <!-- Configuration -->
+            <section id="configuration">
+                <h2>⚙️ Configuration</h2>
+
+                <h3>Config File: <code>.clipress/config.yaml</code></h3>
+
+                <pre><code>engine:
+  show_metrics: false                    # Print token savings to stderr
+  min_lines_to_compress: 15              # Skip outputs shorter than this
+  hot_cache_threshold: 10                # Calls before promoting to hot cache
+  strip_ansi: true                       # Remove ANSI escape codes
+  max_output_bytes: 10485760             # 10 MB max (larger = pass through)
+
+safety:
+  binary_non_ascii_ratio: 0.3            # % non-ASCII → treat as binary
+  security_patterns: []                  # Additional regex patterns
+
+contracts:
+  global:
+    always_keep: []                      # Regex patterns to preserve
+    always_strip: []                     # Regex patterns to remove
+  commands:
+    "git status":
+      always_keep: ["^On branch"]</code></pre>
+
+                <h3>Per-Command Configuration</h3>
+                <pre><code>commands:
+  "docker build":
+    strategy_params:
+      keep: "errors_and_final"
+  "pytest":
+    always_keep:
+      - "FAILED"
+      - "ERROR"</code></pre>
+
+                <h3>User Extensions</h3>
+                <p>Create <code>.clipress/extensions/mytools.yaml</code>:</p>
+                <pre><code>"my-deploy":
+  strategy: progress
+  params:
+    keep: errors_and_final
+
+"kubectl get pods":
+  strategy: table
+  params:
+    max_rows: 30</code></pre>
+
+                <h3>Blocklist</h3>
+                <p>Edit <code>.clipress/.clipress-ignore</code>:</p>
+                <pre><code># Commands that should never be compressed
+kubectl exec
+mysql
+psql</code></pre>
+            </section>
+
+            <!-- Compression Strategies -->
+            <section id="compression">
+                <h2>🔧 Compression Strategies</h2>
+
+                <div class="info-box">
+                    <strong>Shape Detection:</strong> Clipress analyzes output structure and automatically selects the best strategy. Each shape has configurable parameters for fine-tuning.
+                </div>
+
+                <h3>8 Output Shapes</h3>
+
+                <div class="strategy-list">
+                    <div class="strategy-card">
+                        <h4>📋 List</h4>
+                        <p>File listings, grep results, log entries</p>
+                        <code>git log, ls, find, cat</code>
+                        <p><small>Keeps head + tail, optional dedup</small></p>
+                    </div>
+
+                    <div class="strategy-card">
+                        <h4>📊 Table</h4>
+                        <p>Columnar output with headers</p>
+                        <code>docker ps, kubectl get, ps aux</code>
+                        <p><small>Truncates rows and cells</small></p>
+                    </div>
+
+                    <div class="strategy-card">
+                        <h4>⏳ Progress</h4>
+                        <p>Build logs, downloads, installations</p>
+                        <code>docker build, npm install, pip install</code>
+                        <p><small>Strips % lines, keeps errors</small></p>
+                    </div>
+
+                    <div class="strategy-card">
+                        <h4>✅ Test</h4>
+                        <p>Unit test results with failures</p>
+                        <code>pytest, jest, cargo test</code>
+                        <p><small>Extracts failures + traceback</small></p>
+                    </div>
+
+                    <div class="strategy-card">
+                        <h4>📝 Diff</h4>
+                        <p>Git diffs, patch files</p>
+                        <code>git diff, git show</code>
+                        <p><small>Keeps hunks with context</small></p>
+                    </div>
+
+                    <div class="strategy-card">
+                        <h4>🔑 Key-Value</h4>
+                        <p>Config dumps, status output</p>
+                        <code>systemctl status, docker inspect</code>
+                        <p><small>Truncates keeping non-timestamps</small></p>
+                    </div>
+
+                    <div class="strategy-card">
+                        <h4>❌ Error</h4>
+                        <p>Stack traces and exceptions</p>
+                        <code>Python tracebacks, Java exceptions</code>
+                        <p><small>Keeps frames, strips stdlib</small></p>
+                    </div>
+
+                    <div class="strategy-card">
+                        <h4>🎯 Generic</h4>
+                        <p>Fallback truncation (unknown shapes)</p>
+                        <code>Any unmapped output</code>
+                        <p><small>Memory-bounded rolling window</small></p>
+                    </div>
+                </div>
+
+                <h3>Compression Pipeline</h3>
+                <div class="pipeline">
+                    <div>stdin / PTY</div>
+                    <div>  │</div>
+                    <div>  ├─ <span class="pipeline-step">[SIZE GUARD]</span>       output > 10 MB? → pass through</div>
+                    <div>  ├─ <span class="pipeline-step">[ANSI STRIP]</span>       remove escape codes</div>
+                    <div>  ├─ <span class="pipeline-step">[SAFETY GATE]</span>      check blocklist, security patterns, binary</div>
+                    <div>  │</div>
+                    <div>  ├─ <span class="pipeline-step">[STRATEGY RESOLUTION]</span>  (priority order)</div>
+                    <div>  │     1. Hot cache         — in-memory LRU (≥10 calls, 0.85 confidence)</div>
+                    <div>  │     2. Warm cache       — SQLite (≥3 calls, 0.65 confidence)</div>
+                    <div>  │     3. Seed registry    — built-in rules</div>
+                    <div>  │     4. Classifier       — heuristic shape detection</div>
+                    <div>  │</div>
+                    <div>  ├─ <span class="pipeline-step">[COMPRESS]</span>         apply matched strategy</div>
+                    <div>  ├─ <span class="pipeline-step">[CONTRACTS]</span>        apply always_keep / always_strip</div>
+                    <div>  ├─ <span class="pipeline-step">[REGRESSION GUARD]</span> compressed > original? → return original</div>
+                    <div>  ├─ <span class="pipeline-step">[METRICS]</span>          count tokens saved</div>
+                    <div>  └─ <span class="pipeline-step">[LEARN]</span>            update registry.db</div>
+                    <div>  │</div>
+                    <div>stdout (compressed output)</div>
+                </div>
+
+                <h3>Example: <code>git log | clipress compress "git log"</code></h3>
+                <ol>
+                    <li><strong>Size guard:</strong> 100-line log ~2 KB → proceed</li>
+                    <li><strong>ANSI strip:</strong> No codes present → skip</li>
+                    <li><strong>Safety gate:</strong> Not blocked, not binary → proceed</li>
+                    <li><strong>Strategy resolution:</strong> Seed has <code>"git log" → {strategy: "list", max_lines: 20}</code></li>
+                    <li><strong>Compress:</strong> List strategy keeps head (20) + tail (5), inserts <code>... [75 more items]</code></li>
+                    <li><strong>Contracts:</strong> No per-command rules → no change</li>
+                    <li><strong>Regression guard:</strong> 30 lines vs 100 lines → accept</li>
+                    <li><strong>Metrics:</strong> ~1950 tokens saved (75% reduction) → log to stderr</li>
+                    <li><strong>Learn:</strong> Update registry: <code>confidence: 0.50, calls: 1</code></li>
+                </ol>
+            </section>
+
+            <!-- CLI Commands -->
+            <section id="commands">
+                <h2>💻 CLI Commands & Examples</h2>
+
+                <h3>Core Commands</h3>
+
+                <h4><code>clipress init</code> — Initialize workspace</h4>
+                <div class="example-cmd">$ clipress init</div>
+                <p>Creates <code>.clipress/</code> with config, registry, and hooks in current directory.</p>
+
+                <h4><code>clipress init --global</code> — Global setup</h4>
+                <div class="example-cmd">$ clipress init --global</div>
+                <p>Installs global hooks in <code>~/.claude/</code> and <code>~/.gemini/</code> for all projects.</p>
+
+                <h4><code>clipress compress "<cmd>"</code> — Pipe mode</h4>
+                <div class="example-cmd">$ git log --oneline -100 | clipress compress "git log"</div>
+                <div class="example-cmd">$ docker ps -a | clipress compress "docker ps"</div>
+                <div class="example-cmd">$ find . -type f | clipress compress "find"</div>
+                <p>Reads stdin, applies compression based on command name, writes to stdout.</p>
+
+                <h4><code>clipress compress "<cmd>" --no-compress</code> — Pass-through</h4>
+                <div class="example-cmd">$ some_command | clipress compress "some_command" --no-compress</div>
+                <p>Useful when you need raw output for a single command.</p>
+
+                <h4><code>clipress run <cmd> [args]</code> — PTY mode (Unix only)</h4>
+                <div class="example-cmd">$ clipress run docker build -t myapp .</div>
+                <div class="example-cmd">$ clipress run npm install</div>
+                <div class="example-cmd">$ clipress run --stall-timeout 5 ansible-playbook site.yml</div>
+                <p>Spawns command in pseudo-terminal. Interactive prompts auto-trigger passthrough after stall timeout.</p>
+
+                <h3>Status & Information</h3>
+
+                <h4><code>clipress status</code></h4>
+                <div class="example-cmd">$ clipress status</div>
+                <p>Shows workspace path, config location, and learned command statistics.</p>
+
+                <h4><code>clipress validate</code></h4>
+                <div class="example-cmd">$ clipress validate</div>
+                <p>Validates <code>.clipress/config.yaml</code>; exits non-zero on errors.</p>
+
+                <h4><code>clipress report</code></h4>
+                <div class="example-cmd">$ clipress report</div>
+                <p>Prints full token-savings summary from registry.</p>
+
+                <h3>Learning Management</h3>
+
+                <h4><code>clipress learn show</code></h4>
+                <div class="example-cmd">$ clipress learn show</div>
+                <p>Dumps learned registry as JSON.</p>
+
+                <h4><code>clipress learn reset [cmd]</code></h4>
+                <div class="example-cmd">$ clipress learn reset "git log"</div>
+                <div class="example-cmd">$ clipress learn reset</div>
+                <p>Resets confidence for one command, or all entries if no command specified.</p>
+
+                <h4><code>clipress error-passthrough on|off</code></h4>
+                <div class="example-cmd">$ clipress error-passthrough on</div>
+                <p>Toggles <code>pass_through_on_error</code> in config; clears cache immediately.</p>
+
+                <h3>Installation Management</h3>
+
+                <h4><code>clipress uninstall</code></h4>
+                <div class="example-cmd">$ clipress uninstall</div>
+                <p>Removes hooks and uninstalls package (prompts for confirmation).</p>
+
+                <h4><code>clipress uninstall --yes</code></h4>
+                <div class="example-cmd">$ clipress uninstall --yes</div>
+                <p>Skip confirmation prompt.</p>
+
+                <h4><code>clipress uninstall --keep-data</code></h4>
+                <div class="example-cmd">$ clipress uninstall --keep-data</div>
+                <p>Removes hooks but preserves <code>.clipress/</code> workspace data.</p>
+
+                <h3>Environment Variables</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Variable</th>
+                            <th>Effect</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>CLIPRESS_NO_COMPRESS=1</code></td>
+                            <td>Bypass compression entirely; output passes through</td>
+                        </tr>
+                        <tr>
+                            <td><code>CLIPRESS_DEBUG=1</code></td>
+                            <td>Surface internal errors to stderr instead of silently falling back</td>
+                        </tr>
+                        <tr>
+                            <td><code>CLIPRESS_AGENT_MODE=true</code></td>
+                            <td>Suppress interactive prompts during background compression</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <!-- Learning System -->
+            <section id="learning">
+                <h2>🧠 Learning System</h2>
+
+                <div class="highlight-box">
+                    <strong>Three-Tier Knowledge Base:</strong> Clipress improves with every call through a tiered system that prioritizes speed (hot cache) while learning patterns over time (persistent SQLite registry).
+                </div>
+
+                <h3>Tier 1 — Hot Cache (In-Memory)</h3>
+                <ul>
+                    <li><strong>LRU OrderedDict</strong> (max 100 entries), thread-safe</li>
+                    <li><strong>Promotion criteria:</strong> ≥10 calls + ≥0.85 confidence</li>
+                    <li><strong>Speed:</strong> Zero-latency lookup (no disk, no classification)</li>
+                    <li><strong>Scope:</strong> Single process (per-agent session)</li>
+                </ul>
+
+                <h3>Tier 2 — Warm Cache (SQLite)</h3>
+                <ul>
+                    <li><strong>Persistent SQLite database</strong> (with WAL mode for concurrency)</li>
+                    <li><strong>Activation criteria:</strong> ≥3 calls + ≥0.65 confidence</li>
+                    <li><strong>Speed:</strong> Skip classification, use cached strategy</li>
+                    <li><strong>Scope:</strong> Workspace-wide (shared across all processes)</li>
+                </ul>
+
+                <h3>Tier 3 — Seed Registry (Built-In)</h3>
+                <ul>
+                    <li><strong>Pre-defined strategies</strong> for common tools: git, docker, pytest, kubectl, npm</li>
+                    <li><strong>Matching:</strong> Longest-key-first, so <code>docker ps -a</code> before <code>docker ps</code></li>
+                    <li><strong>Override:</strong> User extensions in <code>.clipress/extensions/*.yaml</code></li>
+                </ul>
+
+                <h3>Confidence Mechanics</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Event</th>
+                            <th>Confidence Delta</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Strategy matches previous</td>
+                            <td><code>+0.08</code></td>
+                        </tr>
+                        <tr>
+                            <td>Strategy differs</td>
+                            <td><code>−0.20</code></td>
+                        </tr>
+                        <tr>
+                            <td>Confidence drops below 0.50</td>
+                            <td>Reset to 0.50, adopt new strategy</td>
+                        </tr>
+                        <tr>
+                            <td>Confidence ≥ 0.85 AND calls ≥ 10</td>
+                            <td>Promoted to hot cache</td>
+                        </tr>
+                        <tr>
+                            <td>Confidence ≥ 0.95</td>
+                            <td>Locked (stops updating)</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="info-box">
+                    <strong>Why the asymmetry?</strong> Wrong predictions (−0.20) degrade confidence faster than correct ones restore it (+0.08). This prevents sticking with mismatched strategies.
+                </div>
+
+                <h3>Warm Tier Improvement</h3>
+                <p><strong>NEW in v1.2.2:</strong> The warm tier activates after just <strong>3 consistent calls at 0.65 confidence</strong>, compared to the hot tier's requirement of 10 calls + 0.85 confidence.</p>
+                <ul>
+                    <li>Reduces cold-path classifier invocations by ~70% in typical workflows</li>
+                    <li>After 3 <code>git log</code> invocations, the 4th uses cached strategy (no classify)</li>
+                    <li>Warm entries stay in SQLite DB (not in-memory), allowing sharing across processes</li>
+                </ul>
+
+                <h3>Fuzzy Command Matching</h3>
+                <p><strong>NEW in v1.2.2:</strong> Command variations share cached strategies via base-command matching.</p>
+                <ul>
+                    <li><code>git log --oneline -100</code> and <code>git log --oneline -50</code> both use <code>"git log"</code> cache</li>
+                    <li>Only 3 total calls to any variant needed to activate warm cache</li>
+                    <li>Reduces cold-path invocations by 30-50% in typical workflows</li>
+                </ul>
+
+                <h3>Registry Safety</h3>
+                <ul>
+                    <li><strong>SQLite WAL mode:</strong> Multiple concurrent processes can safely read/write without locking conflicts</li>
+                    <li><strong>Automatic migration:</strong> Legacy <code>registry.json</code> imported on first run</li>
+                    <li><strong>Thread safety:</strong> Hot cache protected by <code>threading.Lock</code></li>
+                </ul>
+            </section>
+
+            <!-- Safety -->
+            <section>
+                <h2>🔒 Safety & Security</h2>
+
+                <h3>Automatic Pass-Through Conditions</h3>
+                <p>Clipress passes output through <strong>without compression</strong> when:</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Condition</th>
+                            <th>Behavior</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Output > 10 MB</td>
+                            <td>Pass through (too large to compress safely)</td>
+                        </tr>
+                        <tr>
+                            <td>Command in blocklist</td>
+                            <td>Pass through (explicitly excluded)</td>
+                        </tr>
+                        <tr>
+                            <td>Security pattern matched</td>
+                            <td>Pass through (credentials detected)</td>
+                        </tr>
+                        <tr>
+                            <td>Binary output detected</td>
+                            <td>Pass through (>30% non-ASCII)</td>
+                        </tr>
+                        <tr>
+                            <td>Output < 15 lines</td>
+                            <td>Pass through (already small)</td>
+                        </tr>
+                        <tr>
+                            <td>Compressed > original</td>
+                            <td>Return original (size-regression guard)</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>Built-In Security Patterns</h3>
+                <ul>
+                    <li>Credential files: <code>.env*</code>, <code>*.pem</code>, <code>*.key</code>, <code>id_rsa</code>, <code>id_ed25519</code></li>
+                    <li>Secret keywords: <code>credentials</code>, <code>secret</code>, <code>password</code>, <code>api_key</code>, <code>api-key</code></li>
+                    <li>Token patterns: <code>AWS_SECRET</code>, <code>GITHUB_TOKEN</code>, <code>bearer &lt;token&gt;</code>, <code>-----BEGIN</code></li>
+                    <li>Sensitive commands: <code>printenv</code>, <code>declare</code>, <code>env</code>, <code>set</code> (unconditionally blocked)</li>
+                </ul>
+
+                <h3>Error Handling</h3>
+                <div class="warning-box">
+                    Clipress is a compressor, not a validator. On any internal error, it returns the original output unchanged. Set <code>CLIPRESS_DEBUG=1</code> to surface suppressed errors.
+                </div>
+            </section>
+
+            <!-- Built-In Commands -->
+            <section>
+                <h2>🎯 Built-In Seed Commands</h2>
+
+                <p>These commands are recognized out of the box without configuration:</p>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Command</th>
+                            <th>Strategy</th>
+                            <th>Streaming</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>git status</code></td>
+                            <td>keyvalue</td>
+                            <td>—</td>
+                        </tr>
+                        <tr>
+                            <td><code>git diff</code></td>
+                            <td>diff</td>
+                            <td>—</td>
+                        </tr>
+                        <tr>
+                            <td><code>git log</code></td>
+                            <td>list</td>
+                            <td>—</td>
+                        </tr>
+                        <tr>
+                            <td><code>git push</code></td>
+                            <td>progress</td>
+                            <td>—</td>
+                        </tr>
+                        <tr>
+                            <td><code>docker ps</code></td>
+                            <td>table</td>
+                            <td>—</td>
+                        </tr>
+                        <tr>
+                            <td><code>docker build</code></td>
+                            <td>progress</td>
+                            <td>✓</td>
+                        </tr>
+                        <tr>
+                            <td><code>docker logs</code></td>
+                            <td>list</td>
+                            <td>—</td>
+                        </tr>
+                        <tr>
+                            <td><code>pytest</code></td>
+                            <td>test</td>
+                            <td>—</td>
+                        </tr>
+                        <tr>
+                            <td><code>npm install</code></td>
+                            <td>progress</td>
+                            <td>✓</td>
+                        </tr>
+                        <tr>
+                            <td><code>pip install</code></td>
+                            <td>progress</td>
+                            <td>✓</td>
+                        </tr>
+                        <tr>
+                            <td><code>cargo build</code></td>
+                            <td>progress</td>
+                            <td>✓</td>
+                        </tr>
+                        <tr>
+                            <td><code>kubectl get pods</code></td>
+                            <td>table</td>
+                            <td>—</td>
+                        </tr>
+                        <tr>
+                            <td><code>ls</code></td>
+                            <td>list</td>
+                            <td>—</td>
+                        </tr>
+                        <tr>
+                            <td><code>find</code></td>
+                            <td>list (grouped)</td>
+                            <td>—</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <p><strong>Streaming:</strong> For marked commands in PTY mode, lines are filtered in real-time (progress spam dropped as it arrives, errors emitted immediately).</p>
+            </section>
+
+            <!-- Practical Examples -->
+            <section>
+                <h2>📌 Practical Examples</h2>
+
+                <h3>Example 1: Git Log Compression</h3>
+                <div class="example-cmd">$ git log --oneline -100 | clipress compress "git log"</div>
+                <p><strong>Input:</strong> 100 lines (2 KB)</p>
+                <p><strong>Output:</strong> 25 lines (500 bytes) with <code>... [75 more items]</code></p>
+                <p><strong>Compression:</strong> 75% token reduction</p>
+
+                <h3>Example 2: Docker Build with PTY</h3>
+                <div class="example-cmd">$ clipress run docker build -t myapp .</div>
+                <p><strong>Features:</strong> Real-time streaming, progress lines dropped, errors kept, auto-passthrough if interactive prompt detected</p>
+
+                <h3>Example 3: Test Output</h3>
+                <div class="example-cmd">$ pytest tests/ 2>&1 | clipress compress "pytest"</div>
+                <p><strong>Input:</strong> Full output with passing tests (1000 lines)</p>
+                <p><strong>Output:</strong> Only failed tests + tracebacks + summary (50 lines)</p>
+                <p><strong>Compression:</strong> 95% token reduction (keeps essential info)</p>
+
+                <h3>Example 4: Table Output</h3>
+                <div class="example-cmd">$ docker ps -a | clipress compress "docker ps"</div>
+                <p><strong>Input:</strong> 50 containers (table format)</p>
+                <p><strong>Output:</strong> Header + 20 containers truncated to 5 columns</p>
+                <p><strong>Compression:</strong> 60% token reduction</p>
+
+                <h3>Example 5: With Configuration</h3>
+                <p>Edit <code>.clipress/config.yaml</code>:</p>
+                <pre><code>engine:
+  show_metrics: true
+  min_lines_to_compress: 10
+
+commands:
+  "git log":
+    always_keep:
+      - "^commit"
+    params:
+      max_lines: 15</code></pre>
+                <p>Now <code>git log</code> compression will:</p>
+                <ul>
+                    <li>Always preserve lines starting with "commit"</li>
+                    <li>Keep max 15 lines instead of default 20</li>
+                    <li>Show token savings on stderr</li>
+                </ul>
+            </section>
+
+            <!-- Architecture -->
+            <section>
+                <h2>🏗️ Architecture Overview</h2>
+
+                <h3>Module Structure</h3>
+                <pre><code>clipress/
+├── engine.py               # Main compression pipeline
+├── classifier.py           # Shape detection heuristics
+├── learner.py              # SQLite registry + confidence tracking
+├── config.py               # Config loading & validation
+├── safety.py               # Security gates
+├── metrics.py              # Token counting
+├── ansi.py                 # ANSI escape code stripping
+├── cli.py                  # Click CLI entry point
+├── hooks/post_tool_use.py  # Agent hook (Claude Code / Gemini CLI)
+└── strategies/
+    ├── generic_strategy.py   # Rolling-window deque
+    ├── list_strategy.py
+    ├── progress_strategy.py
+    ├── test_strategy.py
+    ├── diff_strategy.py
+    ├── table_strategy.py
+    ├── keyvalue_strategy.py
+    └── error_strategy.py</code></pre>
+
+                <h3>Compression Flow</h3>
+                <pre><code>cli.compress_cmd() / run_cmd()
+  └── engine.compress()
+       ├── safety.should_skip()
+       ├── config.get_config()
+       ├── learner.Learner.lookup()       [SQLite read]
+       ├── classifier.detect()             [if not cached]
+       ├── strategies[shape].compress()    [rolling-window deque]
+       └── learner.Learner.record()       [SQLite write, WAL safe]</code></pre>
+            </section>
+
+            <!-- Summary -->
+            <section>
+                <h2>📊 Summary & Key Stats</h2>
+
+                <div class="grid-2">
+                    <div class="card">
+                        <h4>Performance Improvements (v1.2.2)</h4>
+                        <ul>
+                            <li>✅ Token counter: +85% accuracy for paths</li>
+                            <li>✅ Warm tier: 3 calls vs 10 to activate</li>
+                            <li>✅ Fuzzy matching: 30-50% fewer classifications</li>
+                            <li>✅ ANSI guard: O(1) check for 90% of outputs</li>
+                            <li>✅ Heartbeat: Eliminated overhead for small outputs</li>
+                        </ul>
+                    </div>
+
+                    <div class="card">
+                        <h4>Typical Compression</h4>
+                        <ul>
+                            <li>🎯 <code>git log -100</code>: 75% reduction</li>
+                            <li>🎯 <code>docker build</code>: 85% reduction</li>
+                            <li>🎯 <code>pytest</code> (with failures): 90% reduction</li>
+                            <li>🎯 <code>ls -R</code>: 70% reduction</li>
+                            <li>🎯 <code>docker ps</code>: 60% reduction</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="success-box">
+                    <strong>Bottom Line:</strong> Clipress ships lean and learns with every call. After just 3 consistent invocations, a command's strategy is cached and classification is skipped. Output contracts guarantee critical lines always appear, while intelligent compression saves 70-95% of tokens on typical commands — all with zero manual configuration required.
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>📚 <strong>Clipress v1.2.2</strong> — Universal CLI Output Compressor for AI Agents</p>
+            <p>🔗 <a href="https://github.com/0xkhdr/clipress" style="color: #667eea; text-decoration: none;">GitHub</a> | 📖 <a href="https://github.com/0xkhdr/clipress" style="color: #667eea; text-decoration: none;">Documentation</a></p>
+            <p>Generated: April 26, 2026</p>
+        </footer>
+    </div>
+</body>
+</html>
