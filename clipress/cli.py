@@ -103,7 +103,7 @@ def init():
     click.echo("Initialized clipress in this directory.")
 
 
-_HOOK_COMMAND = "python -m clipress.hooks.post_tool_use"
+_HOOK_COMMAND = "clipress hook"
 
 
 def _write_hook_to_settings(settings_path: Path, matcher: str, label: str, event_name: str = "PostToolUse") -> bool:
@@ -613,6 +613,13 @@ def _run_passthrough(master_fd: int, proc: subprocess.Popen, timeout: float, ter
                 termios.tcsetattr(stdin_fd, termios.TCSADRAIN, old_settings)
             except Exception:
                 pass
+
+
+@main.command(name="hook", hidden=True)
+def hook_cmd():
+    """PostToolUse/AfterTool hook entrypoint — reads JSON from stdin, writes JSON to stdout."""
+    from clipress.hooks.post_tool_use import main as _hook_main
+    _hook_main()
 
 
 @main.command()
