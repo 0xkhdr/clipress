@@ -268,6 +268,15 @@ def compress(command: str, output: str, workspace: str) -> str:
         # Apply strategy
         strategy = get_strategy(entry["strategy"])
 
+        if os.environ.get("CLIPRESS_DIAGNOSTIC"):
+            tier = entry.get("source", "unknown")
+            print(
+                f"clipress diagnostic: cmd={normalized_cmd!r}"
+                f" tier={tier} strategy={entry['strategy']}"
+                f" hot={entry.get('hot', False)}",
+                file=sys.stderr,
+            )
+
         global_contract = config.get("contracts", {}).get("global", {})
         cmd_contract = resolve_command_overrides(config, normalized_cmd)
         contract = {

@@ -138,3 +138,67 @@ def test_resolve_command_overrides_uses_longest_prefix():
     }
     resolved = config.resolve_command_overrides(cfg, "git log --all --oneline")
     assert resolved["params"]["max_lines"] == 3
+
+
+def test_extension_with_unknown_strategy_is_skipped(tmp_path, capsys):
+    """Extensions with unknown strategy names must be skipped with a warning."""
+    config.clear_cache()
+    ext_dir = tmp_path / ".clipress" / "extensions"
+    ext_dir.mkdir(parents=True)
+    ext_cfg = {"my_cmd": {"strategy": "nonexistent_strategy_xyz"}}
+    import yaml
+    with open(ext_dir / "bad.yaml", "w") as f:
+        yaml.dump(ext_cfg, f)
+
+    extensions = config.load_extensions(str(tmp_path))
+    assert "my_cmd" not in extensions
+    captured = capsys.readouterr()
+    assert "unknown strategy" in captured.err
+
+
+def test_extension_with_unknown_keys_is_skipped(tmp_path, capsys):
+    """Extensions with unrecognized keys must be skipped with a warning."""
+    config.clear_cache()
+    ext_dir = tmp_path / ".clipress" / "extensions"
+    ext_dir.mkdir(parents=True)
+    import yaml
+    ext_cfg = {"my_cmd": {"strategy": "generic", "danger_key": True}}
+    with open(ext_dir / "bad_keys.yaml", "w") as f:
+        yaml.dump(ext_cfg, f)
+
+    extensions = config.load_extensions(str(tmp_path))
+    assert "my_cmd" not in extensions
+    captured = capsys.readouterr()
+    assert "unknown keys" in captured.err
+
+
+def test_extension_with_invalid_params_is_skipped(tmp_path, capsys):
+    """Extensions where params is not a dict must be skipped."""
+    config.clear_cache()
+    ext_dir = tmp_path / ".clipress" / "extensions"
+    ext_dir.mkdir(parents=True)
+    import yaml
+    ext_cfg = {"my_cmd": {"strategy": "generic", "params": "not_a_dict"}}
+    with open(ext_dir / "bad_params.yaml", "w") as f:
+        yaml.dump(ext_cfg, f)
+
+    extensions = config.load_extensions(str(tmp_path))
+    assert "my_cmd" not in extensions
+    captured = capsys.readouterr()
+    assert "must be a mapping" in captured.err
+
+
+def test_extension_valid_entry_is_loaded(tmp_path):
+    """Valid extension entries with all supported keys must load cleanly."""
+    config.clear_cache()
+    ext_dir = tmp_path / ".clipress" / "extensions"
+    ext_dir.mkdir(parents=True)
+    import yaml
+    ext_cfg = {"my_tool": {"strategy": "list", "params": {"max_lines": 50}, "streamable": False}}
+    with open(ext_dir / "good.yaml", "w") as f:
+        yaml.dump(ext_cfg, f)
+
+    extensions = config.load_extensions(str(tmp_path))
+    assert "my_tool" in extensions
+    assert extensions["my_tool"]["strategy"] == "list"
+    assert extensions["my_tool"]["params"]["max_lines"] == 50

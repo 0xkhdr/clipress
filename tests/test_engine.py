@@ -296,3 +296,32 @@ def test_history_is_recorded_by_default(tmp_path):
     assert latest["command"] == "ls"
     assert latest["raw_output"] == output
     assert latest["compressed_output"] == res
+
+
+def test_diagnostic_mode_emits_to_stderr(tmp_path, monkeypatch, capsys):
+    """CLIPRESS_DIAGNOSTIC=1 must emit tier/strategy info to stderr."""
+    monkeypatch.setenv("CLIPRESS_DIAGNOSTIC", "1")
+    output = "\n".join([f"file_{i}.txt" for i in range(50)])
+    compress("ls", output, str(tmp_path))
+    captured = capsys.readouterr()
+    assert "clipress diagnostic:" in captured.err
+    assert "strategy=" in captured.err
+
+
+def test_diagnostic_mode_off_by_default(tmp_path, monkeypatch, capsys):
+    """Diagnostic output must not appear unless CLIPRESS_DIAGNOSTIC is set."""
+    monkeypatch.delenv("CLIPRESS_DIAGNOSTIC", raising=False)
+    output = "\n".join([f"file_{i}.txt" for i in range(50)])
+    compress("ls", output, str(tmp_path))
+    captured = capsys.readouterr()
+    assert "clipress diagnostic:" not in captured.err
+
+
+def test_py_typed_marker_exists():
+    """py.typed PEP 561 marker must be present in the package."""
+    import importlib.util
+    import pathlib
+    spec = importlib.util.find_spec("clipress")
+    assert spec is not None
+    pkg_dir = pathlib.Path(spec.origin).parent
+    assert (pkg_dir / "py.typed").exists(), "py.typed marker missing — package is not typed"

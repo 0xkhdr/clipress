@@ -111,21 +111,63 @@ def get_config(workspace: str) -> dict[str, Any]:
     _CONFIG_CACHE[workspace] = config
     return config
 
+_KNOWN_EXTENSION_KEYS = frozenset({"strategy", "params", "streamable", "user_override"})
+_KNOWN_STRATEGIES = frozenset({
+    "generic", "list", "progress", "test", "diff", "table", "keyvalue", "error"
+})
+
+
+def _validate_extension_entry(cmd: str, cfg: dict[str, Any], filename: str) -> bool:
+    """Validate a single extension entry. Returns True if valid, False to skip."""
+    unknown_keys = set(cfg.keys()) - _KNOWN_EXTENSION_KEYS - {"user_override"}
+    if unknown_keys:
+        print(
+            f"clipress: extension {filename!r} command {cmd!r} has unknown keys:"
+            f" {sorted(unknown_keys)} — skipping",
+            file=sys.stderr,
+        )
+        return False
+    strategy = cfg.get("strategy")
+    if strategy is not None and strategy not in _KNOWN_STRATEGIES:
+        print(
+            f"clipress: extension {filename!r} command {cmd!r} has unknown strategy"
+            f" {strategy!r} — skipping",
+            file=sys.stderr,
+        )
+        return False
+    params = cfg.get("params")
+    if params is not None and not isinstance(params, dict):
+        print(
+            f"clipress: extension {filename!r} command {cmd!r}.params must be a mapping — skipping",
+            file=sys.stderr,
+        )
+        return False
+    streamable = cfg.get("streamable")
+    if streamable is not None and not isinstance(streamable, bool):
+        print(
+            f"clipress: extension {filename!r} command {cmd!r}.streamable must be a bool — skipping",
+            file=sys.stderr,
+        )
+        return False
+    return True
+
+
 def load_extensions(workspace: str) -> dict[str, Any]:
     workspace_path = Path(workspace)
     extensions_dir = workspace_path / ".clipress" / "extensions"
     extensions = {}
 
     if extensions_dir.exists() and extensions_dir.is_dir():
-        for yaml_file in extensions_dir.glob("*.yaml"):
+        for yaml_file in sorted(extensions_dir.glob("*.yaml")):
             try:
                 with open(yaml_file, "r", encoding="utf-8") as f:
                     ext_data = yaml.safe_load(f)
                     if ext_data and isinstance(ext_data, dict):
                         for cmd, cfg in ext_data.items():
                             if isinstance(cfg, dict):
-                                cfg["user_override"] = True
-                                extensions[cmd] = cfg
+                                if _validate_extension_entry(cmd, cfg, yaml_file.name):
+                                    cfg["user_override"] = True
+                                    extensions[cmd] = cfg
             except Exception as e:
                 print(f"clipress: invalid extension config {yaml_file.name}: {e}", file=sys.stderr)
     return extensions

@@ -1,6 +1,6 @@
 # clipress
 
-![Version](https://img.shields.io/badge/version-1.3.0-blue) ![License](https://img.shields.io/badge/license-MIT-green) ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
+[![PyPI](https://img.shields.io/pypi/v/clipress)](https://pypi.org/project/clipress/) ![Python](https://img.shields.io/badge/python-3.11%2B-blue) ![License](https://img.shields.io/badge/license-MIT-green) ![Status](https://img.shields.io/badge/status-production--stable-brightgreen) [![Tests](https://img.shields.io/badge/tests-171%20passed-brightgreen)](https://github.com/0xkhdr/clipress/actions)
 
 Universal CLI output compressor for AI agents. Intercepts bash command output before it reaches the agent's context window and returns only the semantically meaningful portion.
 
@@ -110,8 +110,10 @@ See [docs/integration.md](docs/integration.md) for full hook details.
 - **Adaptive** — learns from command outputs; proven commands skip classification entirely
 - **Consistent** — contracts guarantee critical lines always appear or never appear
 - **Extensible** — shaped entirely through YAML, no code required
-- **Safe by default** — security-sensitive content is never compressed; any internal error returns the original output unchanged
+- **Safe by default** — 27 built-in security patterns; any internal error returns the original output unchanged
 - **Memory-bounded** — rolling deque caps memory use regardless of output size
 - **Concurrency-safe** — SQLite WAL mode supports parallel agent processes on the same workspace
 - **Cost-first** — configurable token budgets and minimum savings guarantees for agent runs
 - **Recoverable** — `clipress restore` returns original output when compression removed needed detail
+- **Typed** — ships a `py.typed` marker for mypy/pyright compatibility (PEP 561)
+- **Debuggable** — `CLIPRESS_DIAGNOSTIC=1` shows which tier and strategy was chosen without side effects

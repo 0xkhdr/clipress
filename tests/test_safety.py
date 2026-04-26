@@ -137,3 +137,58 @@ def test_blocks_history_command(workspace, config):
     should_skip, reason = safety.should_skip("history", "1 git log\n2 ls\n" * 20, workspace, config)
     assert should_skip is True
     assert "security" in reason
+
+
+def test_blocks_pem_footer_in_output(workspace, config):
+    """PEM footer (-----END) must be detected in output."""
+    output = "-----END RSA PRIVATE KEY-----\n" * 5 + "other content\n" * 20
+    should_skip, reason = safety.should_skip("cat key.pem", output, workspace, config)
+    assert should_skip is True
+    assert "security" in reason
+
+
+def test_blocks_p12_certificate_file(workspace, config):
+    """PKCS#12 (.p12) files must be blocked."""
+    should_skip, reason = safety.should_skip("cat cert.p12", "binary data\n" * 20, workspace, config)
+    assert should_skip is True
+    assert "security" in reason
+
+
+def test_blocks_pfx_certificate_file(workspace, config):
+    """PFX certificate files must be blocked."""
+    should_skip, reason = safety.should_skip("cat bundle.pfx", "binary data\n" * 20, workspace, config)
+    assert should_skip is True
+    assert "security" in reason
+
+
+def test_blocks_git_credential_command(workspace, config):
+    """git credential operations must be blocked."""
+    output = "username=user\npassword=hunter2\n" * 20
+    should_skip, reason = safety.should_skip("git credential fill", output, workspace, config)
+    assert should_skip is True
+    assert "security" in reason
+
+
+def test_blocks_etc_shadow_path(workspace, config):
+    """Access to /etc/shadow must be blocked."""
+    output = "root:x:0:0:root:/root:/bin/bash\n" * 20
+    should_skip, reason = safety.should_skip("cat /etc/shadow", output, workspace, config)
+    assert should_skip is True
+    assert "security" in reason
+
+
+def test_blocks_etc_passwd_path(workspace, config):
+    """/etc/passwd access must be blocked."""
+    output = "root:x:0:0:root:/root:/bin/bash\n" * 20
+    should_skip, reason = safety.should_skip("cat /etc/passwd", output, workspace, config)
+    assert should_skip is True
+    assert "security" in reason
+
+
+def test_user_pattern_cache_key_is_stable(workspace, config):
+    """Pattern cache must use tuple key (not id()) for stable caching across list lifetimes."""
+    patterns = ["CUSTOM_TOKEN_ABC"]
+    compiled1 = safety._compile_user_patterns(patterns)
+    # Build a second list with same strings — must hit the same cache entry
+    compiled2 = safety._compile_user_patterns(list(patterns))
+    assert compiled1 is compiled2, "Cache should return the same compiled list for identical patterns"

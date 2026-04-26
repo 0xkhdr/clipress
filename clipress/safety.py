@@ -7,8 +7,10 @@ SECURITY_PATTERNS = [
     r"\.env\.",  # .env files
     r"\bid_rsa\b",
     r"\bid_ed25519\b",  # SSH private keys
-    r"\.pem$",
-    r"\.key$",  # certificates
+    r"\.pem\b",
+    r"\.key\b",  # certificates
+    r"\.p12\b",
+    r"\.pfx\b",  # PKCS#12 / PFX bundles
     r"\bcredentials\b",  # AWS credentials file
     r"\bsecret\b",  # generic secret
     r"\bpassword\b",  # generic password
@@ -17,12 +19,17 @@ SECURITY_PATTERNS = [
     r"\bGITHUB_TOKEN\b",  # GitHub tokens
     r"\bbearer\s+[a-zA-Z0-9]",  # Bearer tokens in output
     r"-----BEGIN",  # PEM header
+    r"-----END",  # PEM footer
     r"\.ssh/",  # any file under .ssh/
     r"\$[A-Z_]{4,}",  # shell variable expansion like $SECRET, $TOKEN
     r"echo\s+\$",  # echo $VAR
     r"\bprivate[_-]?key\b",  # private key references
     r"\.netrc\b",  # netrc credentials file
     r"\bvault\s+read\b",  # HashiCorp vault commands
+    r"\bgit\s+credential\b",  # git credential operations
+    r"\bssh-keygen\b",  # SSH key generation
+    r"openssl\s+(?:genrsa|ecparam|genpkey|pkcs12|req\s.*-key)",  # OpenSSL key ops
+    r"/etc/(?:passwd|shadow|sudoers)",  # sensitive system files
 ]
 
 # Commands that dump environment variables — their output is always security-sensitive
@@ -30,13 +37,13 @@ SENSITIVE_ENV_COMMANDS = ["printenv", "declare", "env", "set", "history", "fc"]
 
 _DEFAULT_COMPILED = [re.compile(p, re.IGNORECASE) for p in SECURITY_PATTERNS]
 
-# Per-workspace cache of compiled user patterns. Populated from config["safety"]["security_patterns"]
-# so users can extend the list without patching source.
-_USER_PATTERN_CACHE: dict[int, list[re.Pattern[str]]] = {}
+# Per-workspace cache of compiled user patterns. Keyed by tuple of pattern strings
+# so the cache stays stable across list object lifetimes.
+_USER_PATTERN_CACHE: dict[tuple[str, ...], list[re.Pattern[str]]] = {}
 
 
 def _compile_user_patterns(patterns: list[str]) -> list[re.Pattern[str]]:
-    key = id(patterns)
+    key = tuple(patterns)
     cached = _USER_PATTERN_CACHE.get(key)
     if cached is not None:
         return cached

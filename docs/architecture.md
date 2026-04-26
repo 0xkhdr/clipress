@@ -5,14 +5,16 @@
 ```
 clipress/
 ├── clipress/
-│   ├── engine.py               # main pipeline orchestrator (+ _Heartbeat class)
-│   ├── classifier.py           # heuristic shape detection
+│   ├── engine.py               # main pipeline orchestrator (+ _Heartbeat, CLIPRESS_DIAGNOSTIC)
+│   ├── classifier.py           # single-pass heuristic shape detection
 │   ├── learner.py              # SQLite-backed registry & confidence tracking
-│   ├── config.py               # config loading, validation, caching
-│   ├── safety.py               # security & binary detection gates
+│   ├── config.py               # config loading, validation, extension YAML validation
+│   ├── safety.py               # 27 built-in security patterns, binary detection gates
 │   ├── metrics.py              # token counting & reporting
 │   ├── ansi.py                 # ANSI escape code stripping
+│   ├── archive.py              # SQLite-backed history store for `clipress restore`
 │   ├── cli.py                  # Click CLI entry point
+│   ├── py.typed                # PEP 561 typed package marker
 │   ├── hooks/
 │   │   └── post_tool_use.py    # Claude Code PostToolUse / Gemini CLI AfterTool handler
 │   ├── strategies/

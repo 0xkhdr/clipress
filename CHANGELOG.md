@@ -1,5 +1,35 @@
 # Changelog
 
+## [1.4.0] - 2026-04-27
+
+### Hardening & Production Readiness
+
+**Security guard deepening (safety.py)**
+- Added 7 new security patterns: PEM footer (`-----END`), PKCS#12/PFX certificate files (`.p12`, `.pfx`), `git credential` operations, `ssh-keygen` key generation, OpenSSL key operations (`genrsa`, `ecparam`, `genpkey`, `pkcs12`), and sensitive system files (`/etc/passwd`, `/etc/shadow`, `/etc/sudoers`).
+- Fixed `_compile_user_patterns` cache key: replaced unstable `id(list)` with `tuple(patterns)` so the pattern cache is stable across garbage-collection cycles.
+
+**Extension YAML validation (config.py)**
+- `load_extensions` now validates every entry: rejects unknown keys, unknown strategy names, non-dict `params`, and non-bool `streamable` with clear stderr warnings.
+- Extensions with invalid entries are skipped individually rather than silently applied with unknown state.
+
+**Observability (engine.py)**
+- Added `CLIPRESS_DIAGNOSTIC=1` environment variable: emits tier, strategy, and hot-cache status to stderr for each compression call without side effects on output.
+
+**Package integrity (PEP 561)**
+- Added `clipress/py.typed` marker so type checkers (mypy, pyright, basedpyright) recognize clipress as a typed package.
+- Updated `pyproject.toml` wheel includes to bundle `py.typed`.
+
+**Development status**
+- Promoted from `4 - Beta` to `5 - Production/Stable`.
+- Version bumped to 1.4.0.
+- Expanded PyPI keywords for better discoverability.
+
+**Test suite** (171 tests, up from 139)
+- Added `tests/test_golden.py`: 18 structural golden tests covering all 7 strategies with real-world command output shapes (git log, docker build, pytest, git diff, Python tracebacks, docker ps, key-value).
+- Added 7 new security tests: PEM footer, `.p12`/`.pfx` patterns, `git credential`, `/etc/shadow`, `/etc/passwd`, and pattern cache stability.
+- Added 4 new config tests: extension validation for unknown strategy, unknown keys, invalid params, and valid full-featured entries.
+- Added 4 new engine tests: diagnostic mode on/off, `py.typed` marker presence.
+
 ## [1.3.1] - 2026-04-27
 ### Added
 - `clipress restore` command family:
