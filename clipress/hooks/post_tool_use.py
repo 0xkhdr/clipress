@@ -18,9 +18,15 @@ Gemini CLI output:
 import sys
 import json
 import os
+import functools
 
 # Tool names for shell execution in each supported agent
 _SHELL_TOOL_NAMES = {"Bash", "run_shell_command"}
+
+# Minimum output size that justifies the overhead of compression.
+# Anything smaller is passed through unchanged (fast-exit).
+_MIN_CHARS_FOR_COMPRESSION = 200
+_MIN_LINES_FOR_COMPRESSION = 3
 
 
 def main():
@@ -84,8 +90,15 @@ def main():
 
     output = raw_output if isinstance(raw_output, str) else str(raw_output)
 
+    # Fast-path: trivial outputs are never worth compressing.  This avoids the
+    # cost of workspace discovery, config loading, and strategy resolution for
+    # the common case of short shell responses.
+    if len(output) < _MIN_CHARS_FOR_COMPRESSION and output.count("\n") < _MIN_LINES_FOR_COMPRESSION:
+        sys.exit(0)
+
     workspace = find_workspace_root(os.getcwd())
 
+    # Lazy import so the hook starts instantly for pass-through calls.
     from clipress.engine import compress
 
     compressed = compress(command, output, workspace)
@@ -97,6 +110,7 @@ def main():
     sys.exit(0)
 
 
+@functools.lru_cache(maxsize=128)
 def find_workspace_root(start: str) -> str:
     """Walk up directory tree to find .clipress/ root, then .git, then fall back to start."""
     path = os.path.abspath(start)

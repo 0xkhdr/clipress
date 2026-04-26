@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/var/www/html/rai/up/clipress/.clipress/hook.sh"
+            "command": "./.clipress/hook.sh"
           }
         ]
       }

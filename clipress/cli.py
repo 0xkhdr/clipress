@@ -269,7 +269,7 @@ def _register_claude_hook(workspace: str) -> None:
     claude_dir.mkdir(mode=0o700, exist_ok=True)
     settings_path = claude_dir / "settings.json"
     try:
-        _write_hook_to_settings(settings_path, "Bash", ".claude/settings.json", hook_command=str(hook_script))
+        _write_hook_to_settings(settings_path, "Bash", ".claude/settings.json", hook_command="./.clipress/hook.sh")
     except Exception as e:
         click.echo(f"  Warning: Could not register Claude Code hook: {e}")
 
@@ -309,7 +309,7 @@ def _register_gemini_hook(workspace: str) -> None:
     try:
         # Remove stale "PostToolUse" key written by older versions of clipress.
         _remove_hook_from_settings(settings_path, "run_shell_command", ".gemini/settings.json", event_name="PostToolUse")
-        _write_hook_to_settings(settings_path, "run_shell_command", ".gemini/settings.json", event_name="AfterTool", hook_command=str(hook_script))
+        _write_hook_to_settings(settings_path, "run_shell_command", ".gemini/settings.json", event_name="AfterTool", hook_command="./.clipress/hook.sh")
     except Exception as e:
         click.echo(f"  Warning: Could not register Gemini CLI hook: {e}")
 
