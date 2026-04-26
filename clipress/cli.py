@@ -106,8 +106,28 @@ def init():
 _HOOK_COMMAND = "clipress hook"
 
 
-def _write_hook_to_settings(settings_path: Path, matcher: str, label: str, event_name: str = "PostToolUse") -> bool:
+def _resolve_hook_command() -> str:
+    """Return the hook command with full binary path when clipress is not on PATH."""
+    clipress_in_path = shutil.which("clipress")
+    if clipress_in_path:
+        return f"{clipress_in_path} hook"
+    # Venv or editable install: look in the same bin dir as the running Python
+    bin_dir = os.path.dirname(sys.executable)
+    candidate = os.path.join(bin_dir, "clipress")
+    if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
+        return f"{candidate} hook"
+    return _HOOK_COMMAND
+
+
+def _write_hook_to_settings(
+    settings_path: Path,
+    matcher: str,
+    label: str,
+    event_name: str = "PostToolUse",
+    hook_command: str | None = None,
+) -> bool:
     """Insert a hook entry into a settings.json file. Returns True if written."""
+    cmd = hook_command or _HOOK_COMMAND
     settings: dict = {}
     if settings_path.exists():
         try:
@@ -122,10 +142,12 @@ def _write_hook_to_settings(settings_path: Path, matcher: str, label: str, event
     for h in event_hooks:
         if h.get("matcher") == matcher:
             for sub in h.get("hooks", []):
-                if sub.get("command") == _HOOK_COMMAND:
+                # Accept both the bare and full-path forms as "already present"
+                existing_cmd = sub.get("command", "")
+                if existing_cmd == cmd or existing_cmd.endswith("clipress hook"):
                     return False  # already present
 
-    event_hooks.append({"matcher": matcher, "hooks": [{"type": "command", "command": _HOOK_COMMAND}]})
+    event_hooks.append({"matcher": matcher, "hooks": [{"type": "command", "command": cmd}]})
     with open(settings_path, "w", encoding="utf-8") as f:
         json.dump(settings, f, indent=2)
     click.echo(f"  Registered {event_name} hook in {label}")
@@ -149,7 +171,8 @@ def _remove_hook_from_settings(settings_path: Path, matcher: str, label: str, ev
     removed = False
     for h in settings["hooks"][event_name]:
         if h.get("matcher") == matcher:
-            new_subs = [sh for sh in h.get("hooks", []) if sh.get("command") != _HOOK_COMMAND]
+            # Match bare "clipress hook" and full-path ".../clipress hook" forms
+            new_subs = [sh for sh in h.get("hooks", []) if not sh.get("command", "").endswith("clipress hook")]
             if len(new_subs) != len(h.get("hooks", [])):
                 removed = True
                 if new_subs:
@@ -181,7 +204,8 @@ def _register_claude_hook(workspace: str) -> None:
     claude_dir.mkdir(mode=0o700, exist_ok=True)
     settings_path = claude_dir / "settings.json"
     try:
-        _write_hook_to_settings(settings_path, "Bash", ".claude/settings.json")
+        cmd = _resolve_hook_command()
+        _write_hook_to_settings(settings_path, "Bash", ".claude/settings.json", hook_command=cmd)
     except Exception as e:
         click.echo(f"  Warning: Could not register Claude Code hook: {e}")
 
@@ -215,9 +239,10 @@ def _register_gemini_hook(workspace: str) -> None:
     gemini_dir.mkdir(mode=0o700, exist_ok=True)
     settings_path = gemini_dir / "settings.json"
     try:
+        cmd = _resolve_hook_command()
         # Remove stale "PostToolUse" key written by older versions of clipress.
         _remove_hook_from_settings(settings_path, "run_shell_command", ".gemini/settings.json", event_name="PostToolUse")
-        _write_hook_to_settings(settings_path, "run_shell_command", ".gemini/settings.json", event_name="AfterTool")
+        _write_hook_to_settings(settings_path, "run_shell_command", ".gemini/settings.json", event_name="AfterTool", hook_command=cmd)
     except Exception as e:
         click.echo(f"  Warning: Could not register Gemini CLI hook: {e}")
 

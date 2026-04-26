@@ -43,3 +43,4 @@ Thumbs.db
 
 # clipress runtime workspace state
 .compressor/
+.clipress/registry.db
