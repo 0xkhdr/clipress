@@ -4,6 +4,9 @@ from clipress.learner import (
     INITIAL_CONFIDENCE,
     CONFIDENCE_GAIN,
     CONFIDENCE_LOSS,
+    WARM_CALL_THRESHOLD,
+    WARM_CONFIDENCE_THRESHOLD,
+    HOT_THRESHOLD,
 )
 
 
@@ -152,3 +155,91 @@ def test_handles_non_dict_registry_payload(tmp_path):
     learner = Learner(str(tmp_path))
     assert isinstance(learner.data, dict)
     assert "stats" in learner.data and "entries" in learner.data
+
+
+def test_warm_tier_after_3_consistent_calls(tmp_path):
+    """
+    Verify warm tier: after 3 consistent calls at warm confidence threshold,
+    lookup() returns the cached strategy without waiting for 10 calls.
+    """
+    learner = Learner(str(tmp_path))
+    # Record 3 consistent calls (same strategy)
+    for i in range(3):
+        learner.record("cmd", "list", 100, 50)
+
+    entry = learner.data["entries"]["cmd"]
+    assert entry["calls"] == 3
+    # After 3 consistent calls: confidence = INITIAL + 2*GAIN = 0.50 + 0.16 = 0.66
+    assert entry["confidence"] >= WARM_CONFIDENCE_THRESHOLD
+
+    # lookup() should return the entry (warm tier)
+    res = learner.lookup("cmd")
+    assert res is not None
+    assert res["strategy"] == "list"
+    assert res["hot"] is False  # warm tier doesn't set hot=True
+
+
+def test_warm_tier_requires_confidence_threshold(tmp_path):
+    """
+    Verify warm tier requires minimum confidence. A single call at
+    INITIAL_CONFIDENCE (0.50) should not return from lookup().
+    """
+    learner = Learner(str(tmp_path))
+    learner.record("cmd", "list", 100, 50)
+
+    # After 1 call: confidence = INITIAL = 0.50 (below WARM threshold)
+    entry = learner.data["entries"]["cmd"]
+    assert entry["calls"] == 1
+    assert entry["confidence"] == INITIAL_CONFIDENCE
+
+    # lookup() should return None (not warm tier yet)
+    res = learner.lookup("cmd")
+    assert res is None
+
+
+def test_warm_tier_does_not_promote_to_hot_cache(tmp_path):
+    """
+    Verify warm entries stay in DB and don't get promoted to hot cache.
+    Next lookup should still hit the DB (not in-memory cache).
+    """
+    learner = Learner(str(tmp_path))
+    # Record 3 consistent calls (warm tier threshold)
+    for _ in range(3):
+        learner.record("cmd", "list", 100, 50)
+
+    # lookup() returns a warm entry but hot=False
+    res = learner.lookup("cmd")
+    assert res is not None
+    assert res["hot"] is False
+
+    # Create a new Learner instance (simulates new process)
+    learner2 = Learner(str(tmp_path))
+    # Should still find it in the DB and return it
+    res2 = learner2.lookup("cmd")
+    assert res2 is not None
+    assert res2["strategy"] == "list"
+
+
+def test_hot_tier_requires_both_calls_and_confidence(tmp_path):
+    """
+    Verify hot tier (in-memory) requires both 10 calls AND 0.85 confidence.
+    3 calls puts you in warm tier, but not hot tier.
+    """
+    learner = Learner(str(tmp_path))
+    # Record 3 consistent calls (warm tier only, not hot)
+    for _ in range(3):
+        learner.record("cmd", "list", 100, 50)
+
+    entry = learner.data["entries"]["cmd"]
+    assert entry["hot"] is False
+    assert entry["calls"] == 3
+    assert entry["confidence"] < HOT_THRESHOLD
+
+    # Record more calls to reach hot threshold
+    for _ in range(7):  # Now 10 total calls
+        learner.record("cmd", "list", 100, 50)
+
+    entry = learner.data["entries"]["cmd"]
+    assert entry["calls"] == 10
+    assert entry["confidence"] >= HOT_THRESHOLD
+    assert entry["hot"] is True

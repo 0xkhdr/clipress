@@ -10,7 +10,7 @@ from clipress.learner import Learner
 from clipress.metrics import count_tokens
 from clipress.strategies import get_strategy, get_stream_strategy_instance
 from clipress.strategies.base import StreamStrategy
-from clipress.ansi import strip_ansi
+from clipress.ansi import strip_ansi, has_ansi
 from typing import Any, Optional
 
 # Hot cache — in-memory LRU, thread-safe
@@ -50,6 +50,16 @@ class _Heartbeat:
             )
 
 
+def _base_command_key(cmd: str) -> str:
+    """
+    Extract first 2 space-separated words as a stable cache key for fuzzy matching.
+    Allows variations like `git log --oneline -100` and `git log --oneline -50`
+    to share the cached `git log` strategy.
+    """
+    parts = cmd.split(None, 2)
+    return " ".join(parts[:2]) if len(parts) >= 2 else cmd
+
+
 def compress(command: str, output: str, workspace: str) -> str:
     # Bypass clipress entirely if requested (e.g. by agent or user)
     if os.environ.get("CLIPRESS_NO_COMPRESS", "").lower() in ("1", "true", "yes"):
@@ -68,8 +78,8 @@ def compress(command: str, output: str, workspace: str) -> str:
             )
             return output
 
-        # Global ANSI stripping
-        if config.get("engine", {}).get("strip_ansi", True):
+        # Global ANSI stripping (only if ANSI sequences are present)
+        if config.get("engine", {}).get("strip_ansi", True) and has_ansi(output):
             output = strip_ansi(output)
 
         # Safety gate
@@ -81,13 +91,18 @@ def compress(command: str, output: str, workspace: str) -> str:
 
         normalized_cmd = " ".join(command.strip().split())
 
-        # Thread-safe hot cache lookup
+        # Thread-safe hot cache lookup (exact + fuzzy base-command fallback)
         entry = None
         learner: Learner | None = None
+        base_cmd = _base_command_key(normalized_cmd)
         with _HOT_CACHE_LOCK:
             if normalized_cmd in _HOT_CACHE:
                 entry = _HOT_CACHE[normalized_cmd]
                 _HOT_CACHE.move_to_end(normalized_cmd)
+            elif base_cmd != normalized_cmd and base_cmd in _HOT_CACHE:
+                # Fuzzy match: command variation (different flags) shares base command's strategy
+                entry = _HOT_CACHE[base_cmd]
+                _HOT_CACHE.move_to_end(base_cmd)
 
         if entry is None:
             seeds = build_seed_registry(workspace)
@@ -111,16 +126,18 @@ def compress(command: str, output: str, workspace: str) -> str:
                 if learned_entry:
                     entry = learned_entry
                 else:
-                    # Unknown command — run classifier with optional heartbeat
+                    # Unknown command — run classifier with optional adaptive heartbeat
                     hb_cfg = config.get("engine", {})
                     hb_enabled = hb_cfg.get("heartbeat_enabled", True)
                     hb_interval = float(hb_cfg.get("heartbeat_interval_seconds", 5))
                     hb_threshold = int(hb_cfg.get("heartbeat_line_threshold", 500))
 
                     hb: _Heartbeat | None = None
-                    if hb_enabled:
+                    line_count = len(output.splitlines())
+                    # Only spawn heartbeat thread for large outputs (avoids overhead for typical case)
+                    if hb_enabled and line_count >= hb_threshold:
                         hb = _Heartbeat(interval=hb_interval, line_threshold=hb_threshold)
-                        hb.add_lines(len(output.splitlines()))
+                        hb.add_lines(line_count)
                         hb.start()
 
                     try:
@@ -141,6 +158,9 @@ def compress(command: str, output: str, workspace: str) -> str:
                     if len(_HOT_CACHE) >= _HOT_CACHE_MAX_SIZE:
                         _HOT_CACHE.popitem(last=False)
                     _HOT_CACHE[normalized_cmd] = entry
+                    # Also store at base key for fuzzy matching (e.g., "git log" for "git log --oneline -100")
+                    if base_cmd != normalized_cmd:
+                        _HOT_CACHE[base_cmd] = entry
 
         # Apply strategy
         strategy = get_strategy(entry["strategy"])

@@ -10,9 +10,11 @@ from typing import Any
 INITIAL_CONFIDENCE = 0.50
 CONFIDENCE_GAIN = 0.08
 CONFIDENCE_LOSS = 0.20
-HOT_THRESHOLD = 0.85
+WARM_CONFIDENCE_THRESHOLD = 0.65  # INITIAL + 2*GAIN, warm tier (no hot cache)
+HOT_THRESHOLD = 0.85              # hot tier (in-memory cache)
 LOCKED_THRESHOLD = 0.95
-HOT_CALL_THRESHOLD = 10
+WARM_CALL_THRESHOLD = 3           # return cached strategy after 3 calls at warm confidence
+HOT_CALL_THRESHOLD = 10           # promote to hot cache after 10 calls at hot confidence
 
 _SESSION_PIDS: set[int] = set()
 
@@ -161,8 +163,20 @@ class Learner:
                 "user_override": bool(row["user_override"]),
                 "params": json.loads(row["params"] or "{}"),
             }
-            if entry.get("user_override") or entry.get("confidence", 0) >= HOT_THRESHOLD:
+            confidence = entry.get("confidence", 0)
+            calls = entry.get("calls", 0)
+            user_override = entry.get("user_override", False)
+
+            # Hot tier: cached in memory, zero-latency lookup
+            if user_override or confidence >= HOT_THRESHOLD:
                 return entry
+
+            # Warm tier: use cached strategy after 3 consistent calls,
+            # but don't put in hot cache (re-uses DB on next call)
+            if calls >= WARM_CALL_THRESHOLD and confidence >= WARM_CONFIDENCE_THRESHOLD:
+                entry["hot"] = False  # explicitly skip hot cache promotion
+                return entry
+
             return None
         except Exception:
             return None
