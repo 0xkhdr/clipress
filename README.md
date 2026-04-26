@@ -8,11 +8,13 @@ A Python-based CLI proxy that intercepts bash command output before it reaches a
 
 ## Table of Contents
 
+- [Prerequisites](#prerequisites)
 - [Quick Start](#quick-start)
 - [How It Works](#how-it-works)
 - [Integration & Setup](#integration--setup)
 - [Configuration](#configuration)
 - [Compression Strategies](#compression-strategies)
+- [Built-In Seed Commands](#built-in-seed-commands)
 - [The Learning System](#the-learning-system)
 - [Output Contracts](#output-contracts)
 - [Safety & Security](#safety--security)
@@ -22,9 +24,20 @@ A Python-based CLI proxy that intercepts bash command output before it reaches a
 
 ---
 
-## Quick Start
+## Prerequisites
 
-**Requires Python 3.11+.**
+| Requirement | Details |
+| :--- | :--- |
+| **Python** | 3.11 or newer |
+| **pip or pipx** | Required for installation (`pipx` recommended for isolation) |
+| **Unix / macOS** | `clipress run` (PTY mode) requires Unix — uses `pty`, `termios`, `tty` modules. Pipe mode (`clipress compress`) works on all platforms |
+| **click ≥ 8.0** | Installed automatically as a dependency |
+| **ruamel.yaml ≥ 0.18** | Installed automatically as a dependency |
+| **tiktoken** *(optional)* | `pip install tiktoken` — enables accurate token counting using `cl100k_base` encoding. Without it, clipress estimates tokens as `len(text.split()) * 1.3` |
+
+---
+
+## Quick Start
 
 ### Install
 
@@ -48,6 +61,11 @@ cd clipress
 ```
 
 > `install.sh` detects whether it is running inside the cloned repo (presence of `pyproject.toml`) and installs from local source. When run outside a repo (including the curl path) it installs directly from GitHub. It also detects the nearest git repository root and initializes hooks there.
+>
+> If `clipress` is not found in `PATH` after installation, add `~/.local/bin` to your shell profile:
+> ```bash
+> export PATH="$HOME/.local/bin:$PATH"
+> ```
 
 ### Initialize and use
 
@@ -65,7 +83,7 @@ git log --oneline -100 | clipress compress "git log"
 # Pass through unchanged when needed
 some_command | clipress compress "some_command" --no-compress
 
-# Run a command with PTY support (handles interactive prompts)
+# Run a command with PTY support (handles interactive prompts, Unix only)
 clipress run docker build -t myapp .
 ```
 
@@ -127,12 +145,14 @@ The hook entry written to `.claude/settings.json`:
     "PostToolUse": [
       {
         "matcher": "Bash",
-        "hooks": [{ "type": "command", "command": "clipress hook" }]
+        "hooks": [{ "type": "command", "command": "/your/project/.clipress/hook.sh" }]
       }
     ]
   }
 }
 ```
+
+The command points to a small shell script written to `.clipress/hook.sh` during `clipress init`. The script discovers clipress at **runtime** rather than encoding a path at install time, so the hook survives venv recreation, Python upgrades, and reinstalls without needing to re-run `clipress init`.
 
 If a global hook exists in `~/.claude/settings.json`, `init` removes it automatically to prevent double compression. Conversely, `clipress init --global` installs hooks in `~/.claude/settings.json` (and `~/.gemini/settings.json`) and removes any local project hooks.
 
@@ -150,14 +170,31 @@ The hook entry written to `.gemini/settings.json`:
     "AfterTool": [
       {
         "matcher": "run_shell_command",
-        "hooks": [{ "type": "command", "command": "clipress hook" }]
+        "hooks": [{ "type": "command", "command": "/your/project/.clipress/hook.sh" }]
       }
     ]
   }
 }
 ```
 
-The same `post_tool_use` hook handles both Claude Code and Gemini CLI — it detects the tool name automatically.
+The same `hook.sh` script is reused for both Claude Code and Gemini CLI — the `post_tool_use` module detects the tool name automatically and formats its response accordingly (`tool_result` for Claude Code, `{"decision": "deny", "reason": ...}` for Gemini CLI).
+
+### How `hook.sh` Works
+
+`clipress init` writes a small shell script to `.clipress/hook.sh` (or `~/.clipress/hook.sh` for global init). The agent settings reference this script rather than a binary path. At hook fire time, the script discovers clipress with this priority:
+
+1. `clipress` on `PATH` — covers pipx, Homebrew, system pip, `uv tool install`, conda
+2. Common single-user install locations — `~/.local/bin/clipress`, `~/.local/share/uv/tools/…`
+3. Python module fallback — `python3 -m clipress.hooks.post_tool_use` for any reachable Python
+4. Silent `exit 0` — never blocks the agent if clipress is not found
+
+This means the hook works after venv recreation, Python upgrades, pipx reinstalls, and across any machine where a user runs `clipress init`.
+
+> **Upgrading clipress** does not require re-running `clipress init`. The `hook.sh` script discovers the new binary automatically on the next hook invocation.
+
+### Hook Workspace Discovery
+
+When the hook fires, it walks up the directory tree from the current working directory to find the nearest `.clipress/` workspace. If none is found it then looks for a `.git/` root, then falls back to the current directory. This means hooks work correctly even in subdirectories of a project.
 
 ### Shell-Based Agents (Codex, Cursor terminal, etc.)
 
@@ -194,17 +231,19 @@ some_command | clipress compress "some_command"
 
 ```
 .clipress/
-├── config.yaml           # local overrides (merged on top of defaults)
-├── registry.db           # learned command patterns (SQLite, WAL mode)
-├── .clipress-ignore      # blocklist — one command prefix per line
-└── extensions/           # custom seed rules
+├── config.yaml                    # local overrides (merged on top of defaults)
+├── registry.db                    # learned command patterns (SQLite, WAL mode)
+├── hook.sh                        # runtime-discovery wrapper — referenced by agent settings
+├── .clipress-ignore               # blocklist — one command prefix per line
+└── extensions/                    # custom seed rules
+    ├── example.yaml.disabled      # rename to .yaml to activate
     └── *.yaml
 
 .claude/
-└── settings.json         # Claude Code PostToolUse hook (Bash matcher)
+└── settings.json                  # Claude Code PostToolUse hook (Bash matcher)
 
 .gemini/
-└── settings.json         # Gemini CLI PostToolUse hook (run_shell_command matcher)
+└── settings.json                  # Gemini CLI AfterTool hook (run_shell_command matcher)
 ```
 
 Both `.claude/settings.json` and `.gemini/settings.json` are project-scoped — they only apply when the respective AI agent is running in this directory. Each project gets its own isolated clipress workspace.
@@ -219,8 +258,9 @@ All keys are optional — unset keys fall back to the built-in defaults below.
 engine:
   show_metrics: false         # print token savings to stderr after each call
   min_lines_to_compress: 15   # skip outputs shorter than this (pass through raw)
+  hot_cache_threshold: 10     # minimum calls before a command is promoted to hot cache
   strip_ansi: true            # strip ANSI escape codes before processing
-  pass_through_on_error: true # return raw output when error shape is detected
+  pass_through_on_error: false # return raw output when error shape is detected
   max_output_bytes: 10485760  # 10 MB — larger outputs are passed through
 
   # Heartbeat: periodic stderr messages while buffering unknown commands
@@ -238,14 +278,28 @@ contracts:
     always_keep: []           # regex — matching lines are never removed
     always_strip: []          # regex — matching lines are always removed
 
-commands:                     # per-command contract overrides
+commands:                     # per-command overrides (contracts + strategy params)
   "git status":
     always_keep:
       - "^On branch"
+    params:
+      max_lines: 20
   "docker ps":
     always_strip:
       - "CREATED"
+    params:
+      max_rows: 10
 ```
+
+#### `commands` section
+
+Each entry under `commands` is keyed by command prefix (longest match wins) and accepts:
+
+| Key | Purpose |
+| :--- | :--- |
+| `always_keep` | Regex list — matching lines from the original output are always present in the result |
+| `always_strip` | Regex list — matching lines are always removed from the result |
+| `params` | Strategy params — merged on top of seed/learned params (user wins) |
 
 ### User Extensions (`.clipress/extensions/*.yaml`)
 
@@ -392,13 +446,44 @@ Uses a memory-bounded rolling-window (deque) that caps RAM usage to `head_lines 
 
 ---
 
+## Built-In Seed Commands
+
+These commands are recognized out of the box. No configuration required. Commands marked **Streaming** use real-time line filtering in `clipress run` (progress spam is dropped as it arrives; errors are emitted immediately).
+
+| Command | Strategy | Streaming |
+| :--- | :--- | :---: |
+| `git status` | keyvalue | — |
+| `git diff` | diff | — |
+| `git log` | list | — |
+| `git push` | progress | — |
+| `git pull` | progress | — |
+| `git stash` | list | — |
+| `docker ps` | table | — |
+| `docker build` | progress | ✓ |
+| `docker logs` | list | — |
+| `docker images` | table | — |
+| `pytest` | test | — |
+| `jest` | test | — |
+| `cargo test` | test | — |
+| `npm install` | progress | ✓ |
+| `pip install` | progress | ✓ |
+| `cargo build` | progress | ✓ |
+| `npm run build` | progress | ✓ |
+| `ls` | list | — |
+| `find` | list (grouped) | — |
+| `cat` | list | — |
+
+Override any seed by adding an entry with the same key to `.clipress/extensions/*.yaml`.
+
+---
+
 ## The Learning System
 
 clipress maintains a three-tier knowledge base that grows more accurate with each call.
 
 ### Tier 1 — Hot Cache (in-memory, per-process)
 
-An LRU `OrderedDict` (max 100 entries) protected by `threading.Lock`. Commands that have been called ≥10 times with confidence ≥0.85 are promoted here. Hot-cached commands skip classification entirely — fastest possible path.
+An LRU `OrderedDict` (max 100 entries) protected by `threading.Lock`. Commands that have been called ≥ `hot_cache_threshold` times (default 10) with confidence ≥ 0.85 are promoted here. Hot-cached commands skip classification entirely — fastest possible path.
 
 ### Tier 2 — Seed Registry (built-in + user extensions)
 
@@ -435,7 +520,7 @@ A learner entry is only used for strategy resolution once `confidence ≥ 0.85`.
 | Strategy matches previous | `+0.08` |
 | Strategy differs | `−0.20` |
 | Confidence drops below `0.50` | reset to `0.50`, adopt new strategy |
-| Confidence ≥ `0.85` AND calls ≥ 10 | promoted to hot (classification skipped) |
+| Confidence ≥ `0.85` AND calls ≥ `hot_cache_threshold` | promoted to hot (classification skipped) |
 | Confidence ≥ `0.95` | locked (confidence stops updating) |
 
 The asymmetry (−0.20 vs +0.08) means wrong predictions degrade confidence faster than correct ones restore it, preventing the learner from sticking with a mismatched strategy.
@@ -524,17 +609,22 @@ clipress is a compressor, not a validator. It must never crash the agent or bloc
 | Command | Description |
 | :--- | :--- |
 | `clipress init` | Create `.clipress/` in the current directory with default config and local agent hooks |
-| `clipress init --global` | Install global agent hooks in `~/.claude/` and `~/.gemini/` |
+| `clipress init --global` | Install global agent hooks in `~/.claude/` and `~/.gemini/`; removes any local project hooks |
 | `clipress compress "<cmd>"` | Read stdin, write compressed output to stdout |
 | `clipress compress "<cmd>" --no-compress` | Read stdin, pass through unchanged |
-| `clipress run <cmd> [args…]` | Spawn command in PTY; compress output, auto-switch to passthrough on interactive prompt |
+| `clipress compress "<cmd>" --workspace <path>` | Use a specific workspace directory (default: CWD) |
+| `clipress run <cmd> [args…]` | Spawn command in PTY (Unix only); compress output, auto-switch to passthrough on interactive prompt |
+| `clipress run --stall-timeout <sec> <cmd>` | Custom stall timeout before interactive passthrough (default: 2s) |
+| `clipress run --workspace <path> <cmd>` | Use a specific workspace directory |
 | `clipress status` | Show workspace path, config path, and learned stats |
 | `clipress validate` | Validate `.clipress/config.yaml`; exit non-zero on error |
 | `clipress report` | Print full token-savings summary |
 | `clipress learn show` | Dump registry as JSON |
 | `clipress learn reset [cmd]` | Reset confidence for one command, or all entries |
 | `clipress error-passthrough on\|off` | Toggle `pass_through_on_error` in config |
-| `clipress uninstall` | Remove hooks and uninstall the package |
+| `clipress uninstall` | Remove hooks, workspace data, and uninstall the package |
+| `clipress uninstall --yes` | Skip confirmation prompt |
+| `clipress uninstall --keep-data` | Remove hooks and uninstall but keep `.clipress/` workspace data |
 
 ### Environment Variables
 
@@ -545,6 +635,8 @@ clipress is a compressor, not a validator. It must never crash the agent or bloc
 
 ### `clipress run` — PTY Mode
 
+> **Unix only** — requires `pty`, `termios`, and `tty` modules. On Windows, use pipe mode (`cmd | clipress compress "cmd"`) instead.
+
 `clipress run` spawns the target command inside a pseudo-terminal. This has two advantages over piping:
 
 1. **TTY-aware programs** (interactive installers, password prompts, vim, etc.) behave normally because they see a real terminal.
@@ -552,6 +644,7 @@ clipress is a compressor, not a validator. It must never crash the agent or bloc
    - It compresses and flushes whatever output has been buffered so far.
    - It prints `[clipress: interactive prompt detected — switching to passthrough]` to stderr.
    - It switches to raw bidirectional passthrough so the agent (or user) can respond to the prompt directly.
+3. **Streaming mode**: commands marked as streamable in the seed registry (see [Built-In Seed Commands](#built-in-seed-commands)) filter lines in real time instead of buffering until exit — progress spam is dropped as it arrives, errors are emitted immediately.
 
 ```bash
 # Build a Docker image (long-running, progress output)
@@ -585,7 +678,7 @@ clipress/
 │   ├── ansi.py                 # ANSI escape code stripping
 │   ├── cli.py                  # Click CLI entry point (compress + run commands)
 │   ├── hooks/
-│   │   └── post_tool_use.py    # Claude Code PostToolUse hook
+│   │   └── post_tool_use.py    # Claude Code PostToolUse / Gemini CLI AfterTool hook
 │   ├── strategies/
 │   │   ├── base.py
 │   │   ├── generic_strategy.py   # rolling-window deque
