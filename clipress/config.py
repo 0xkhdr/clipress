@@ -35,9 +35,33 @@ def _validate(config: dict[str, Any]) -> None:
     check(config.get("engine", {}).get("hot_cache_threshold", 0) >= 1, "hot_cache_threshold must be >= 1")
     check(isinstance(config.get("engine", {}).get("strip_ansi", True), bool), "strip_ansi must be a bool")
     check(isinstance(config.get("engine", {}).get("pass_through_on_error", True), bool), "pass_through_on_error must be a bool")
+    check(
+        isinstance(config.get("engine", {}).get("save_history", True), bool),
+        "save_history must be a bool",
+    )
 
     max_bytes = config.get("engine", {}).get("max_output_bytes", 10_485_760)
     check(isinstance(max_bytes, int) and max_bytes > 0, "max_output_bytes must be a positive integer")
+    target_max_tokens = config.get("engine", {}).get("target_max_tokens", 0)
+    check(
+        isinstance(target_max_tokens, int) and target_max_tokens >= 0,
+        "target_max_tokens must be an integer >= 0",
+    )
+    min_savings_ratio = config.get("engine", {}).get("min_savings_ratio", 0.10)
+    check(
+        isinstance(min_savings_ratio, (int, float)) and 0 <= float(min_savings_ratio) <= 1,
+        "min_savings_ratio must be between 0 and 1",
+    )
+    min_raw_tokens = config.get("engine", {}).get("min_raw_tokens_for_cost_guard", 200)
+    check(
+        isinstance(min_raw_tokens, int) and min_raw_tokens >= 0,
+        "min_raw_tokens_for_cost_guard must be an integer >= 0",
+    )
+    history_max_entries = config.get("engine", {}).get("history_max_entries", 100)
+    check(
+        isinstance(history_max_entries, int) and history_max_entries >= 1,
+        "history_max_entries must be an integer >= 1",
+    )
 
     patterns = config.get("safety", {}).get("security_patterns", [])
     check(isinstance(patterns, list), "security_patterns must be a list")
@@ -158,3 +182,24 @@ def clear_cache() -> None:
     global _SEED_CACHE
     _CONFIG_CACHE.clear()
     _SEED_CACHE.clear()
+
+
+def resolve_command_overrides(config: dict[str, Any], command: str) -> dict[str, Any]:
+    """
+    Return the most specific command override (longest-prefix match) from
+    config["commands"] for the provided normalized command.
+    """
+    commands = config.get("commands", {})
+    if not isinstance(commands, dict) or not command:
+        return {}
+
+    best_key = None
+    for key in commands:
+        if command == key or command.startswith(key + " "):
+            if best_key is None or len(key) > len(best_key):
+                best_key = key
+
+    if best_key is None:
+        return {}
+    value = commands.get(best_key, {})
+    return value if isinstance(value, dict) else {}

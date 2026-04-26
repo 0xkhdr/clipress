@@ -127,3 +127,14 @@ def test_invalid_max_output_bytes_falls_back_to_defaults(tmp_path, capsys):
 
     captured = capsys.readouterr()
     assert "clipress: invalid user config" in captured.err
+
+
+def test_resolve_command_overrides_uses_longest_prefix():
+    cfg = {
+        "commands": {
+            "git log": {"params": {"max_lines": 10}},
+            "git log --all": {"params": {"max_lines": 3}},
+        }
+    }
+    resolved = config.resolve_command_overrides(cfg, "git log --all --oneline")
+    assert resolved["params"]["max_lines"] == 3

@@ -9,6 +9,7 @@ from click.testing import CliRunner
 
 from clipress.cli import main
 from clipress.config import clear_cache
+from clipress.engine import compress
 
 
 @pytest.fixture(autouse=True)
@@ -159,6 +160,24 @@ def test_package_version_matches_pyproject():
     """__version__ must track the installed package metadata (or 0+unknown if uninstalled)."""
     from clipress import __version__
     assert isinstance(__version__, str) and __version__
+
+
+def test_cli_restore_latest_raw_output(runner, tmp_path):
+    os.chdir(tmp_path)
+    output = "line_a\n" * 30
+    compress("ls", output, str(tmp_path))
+
+    result = runner.invoke(main, ["restore"])
+    assert result.exit_code == 0
+    assert result.output == output
+
+
+def test_cli_restore_list_entries(runner, tmp_path):
+    os.chdir(tmp_path)
+    compress("ls", "x\n" * 30, str(tmp_path))
+    result = runner.invoke(main, ["restore", "--list"])
+    assert result.exit_code == 0
+    assert "tokens(raw->compressed)" in result.output
 
 
 # --- Claude Hook ---

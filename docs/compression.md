@@ -19,9 +19,11 @@ stdin / PTY
   │
   ├─ [COMPRESS]           run the matched strategy
   ├─ [CONTRACTS]          apply always_keep / always_strip rules
+  ├─ [COST GUARD]         optional token budget + min-savings enforcement
   ├─ [REGRESSION GUARD]   compressed > original (bytes or tokens)? → return original
   ├─ [METRICS]            count tokens saved, log to stderr if show_metrics=true
-  └─ [LEARN]              update registry.db with outcome
+  ├─ [LEARN]              update registry.db with outcome
+  └─ [HISTORY]            save raw/compressed pair for `clipress restore`
   │
 stdout (compressed output)
 ```
@@ -34,9 +36,10 @@ stdout (compressed output)
 4. **Strategy resolution** — seed registry has `"git log" → { strategy: "list", params: { max_lines: 20 } }`
 5. **Compress** — `ListStrategy` keeps head (20) + tail (5), inserts `... [75 more items]`
 6. **Contracts** — no per-command rules, no change
-7. **Regression guard** — 30 lines vs. 100 lines, pass
-8. **Metrics** — ~1950 tokens saved (75% reduction), printed to stderr if enabled
-9. **Learn** — registry entry updated: `{ strategy: "list", calls: 1, confidence: 0.50 }`
+7. **Cost guard** — optional budget/savings policy may apply extra trimming
+8. **Regression guard** — 30 lines vs. 100 lines, pass
+9. **Metrics** — ~1950 tokens saved (75% reduction), printed to stderr if enabled
+10. **Learn + history** — registry entry updated, restorable output snapshot stored
 
 ---
 

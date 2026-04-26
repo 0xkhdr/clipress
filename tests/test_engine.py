@@ -2,6 +2,8 @@ import os
 import time
 from clipress.engine import compress, _base_command_key
 from clipress.ansi import has_ansi
+from clipress.metrics import count_tokens
+from clipress.archive import ArchiveStore
 
 
 def test_no_compress_env_var_bypasses_compression(monkeypatch):
@@ -240,3 +242,57 @@ def test_has_ansi_detects_escape_character():
     assert has_ansi("\x1b[0m") is True
     assert has_ansi("text\x1b[31mred") is True
     assert has_ansi("no escape here") is False
+
+
+def test_command_overrides_support_longest_prefix_match(tmp_path):
+    d = tmp_path / ".clipress"
+    d.mkdir()
+    (d / "config.yaml").write_text(
+        """
+engine:
+  min_savings_ratio: 0
+commands:
+  "git log":
+    params:
+      max_lines: 5
+  "git log --all":
+    params:
+      max_lines: 3
+"""
+    )
+    output = "\n".join([f"commit_{i}" for i in range(40)])
+    res = compress("git log --all --oneline", output, str(tmp_path))
+    assert "... [" in res
+    # The 3-line override should beat the broader "git log" prefix.
+    assert len(res.splitlines()) <= 4
+
+
+def test_target_max_tokens_enforced_for_large_output(tmp_path):
+    d = tmp_path / ".clipress"
+    d.mkdir()
+    (d / "config.yaml").write_text(
+        """
+engine:
+  target_max_tokens: 40
+  min_raw_tokens_for_cost_guard: 0
+  min_savings_ratio: 0
+"""
+    )
+    output = "\n".join(
+        [f"line {i} alpha beta gamma delta epsilon zeta eta theta iota kappa" for i in range(500)]
+    )
+    res = compress("unknown_cmd_large", output, str(tmp_path))
+    assert count_tokens(res) <= 40
+
+
+def test_history_is_recorded_by_default(tmp_path):
+    output = "\n".join([f"file_{i}.txt" for i in range(80)])
+    res = compress("ls", output, str(tmp_path))
+    assert res
+
+    store = ArchiveStore(str(tmp_path))
+    latest = store.latest()
+    assert latest is not None
+    assert latest["command"] == "ls"
+    assert latest["raw_output"] == output
+    assert latest["compressed_output"] == res

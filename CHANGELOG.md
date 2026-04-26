@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.3.1] - 2026-04-27
+### Added
+- `clipress restore` command family:
+  - `clipress restore`
+  - `clipress restore <id>`
+  - `clipress restore --command "<cmd>"`
+  - `clipress restore --list [--limit N]`
+- Workspace history store (`.clipress/history.db`, SQLite+WAL) to retain recent raw/compressed outputs.
+- Engine cost guardrails:
+  - `engine.target_max_tokens`
+  - `engine.min_savings_ratio`
+  - `engine.min_raw_tokens_for_cost_guard`
+  - adaptive generic fallback for large expensive outputs.
+
+### Fixed
+- Per-command config overrides now honor documented longest-prefix matching (`commands:`), not exact-only matching.
+- Streaming seed parameter merges now use the same longest-prefix command override resolution as non-streaming compression.
+
+### Changed
+- Default config now includes `save_history` + `history_max_entries`.
+- Docs updated for cost controls, history storage, and restore workflow.
+
 ## [1.2.2] - 2026-04-24
 ### Fixed (Critical)
 - **Size-regression guard bypassed by whitespace bloat** (`engine.py`): the guard compared only

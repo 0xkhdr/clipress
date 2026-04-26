@@ -1,6 +1,6 @@
 # clipress
 
-![Version](https://img.shields.io/badge/version-1.2.2-blue) ![License](https://img.shields.io/badge/license-MIT-green) ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
+![Version](https://img.shields.io/badge/version-1.3.0-blue) ![License](https://img.shields.io/badge/license-MIT-green) ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
 
 Universal CLI output compressor for AI agents. Intercepts bash command output before it reaches the agent's context window and returns only the semantically meaningful portion.
 
@@ -50,6 +50,9 @@ clipress run docker build -t myapp .
 
 # Check workspace status and token savings
 clipress status
+
+# Restore the latest raw output if the agent needs full context
+clipress restore
 ```
 
 After `clipress init`, compression is **automatic** — every bash command run by Claude Code or Gemini CLI is intercepted by the installed hook with no further setup.
@@ -64,8 +67,9 @@ clipress sits between the shell and the AI agent. On every bash tool call:
 2. **Strategy resolution** — checks hot cache → seed registry → learned patterns → heuristic classifier
 3. **Compression** — applies the matched strategy (list, diff, test, progress, table, key-value, error, generic)
 4. **Contracts** — enforces `always_keep` / `always_strip` rules from config
-5. **Regression guard** — if compressed output is larger than the original, the original is returned
-6. **Learning** — updates the workspace registry with the outcome
+5. **Cost guardrails** — optional token budget + minimum savings ratio for reliable cost control
+6. **Regression guard** — if compressed output is larger than the original, the original is returned
+7. **Learning + history** — updates workspace registry and stores recoverable history entries
 
 Full pipeline details: [docs/compression.md](docs/compression.md)
 
@@ -107,3 +111,5 @@ See [docs/integration.md](docs/integration.md) for full hook details.
 - **Safe by default** — security-sensitive content is never compressed; any internal error returns the original output unchanged
 - **Memory-bounded** — rolling deque caps memory use regardless of output size
 - **Concurrency-safe** — SQLite WAL mode supports parallel agent processes on the same workspace
+- **Cost-first** — configurable token budgets and minimum savings guarantees for agent runs
+- **Recoverable** — `clipress restore` returns original output when compression removed needed detail

@@ -10,6 +10,7 @@ import yaml
 from pathlib import Path
 from clipress.engine import compress, get_stream_handler
 from clipress.learner import Learner
+from clipress.archive import ArchiveStore
 from clipress.config import get_config, validate_config_file, ConfigError, clear_cache
 from clipress.metrics import format_report
 from clipress.safety import is_security_sensitive, _compile_user_patterns
@@ -63,6 +64,11 @@ def init(global_):
             "  show_metrics: false\n"
             "#  max_output_bytes: 10485760  # 10 MB\n"
             "#  pass_through_on_error: false\n"
+            "#  target_max_tokens: 1200\n"
+            "#  min_savings_ratio: 0.15\n"
+            "#  min_raw_tokens_for_cost_guard: 200\n"
+            "#  save_history: true\n"
+            "#  history_max_entries: 100\n"
             "#  heartbeat_enabled: true\n"
             "#  heartbeat_interval_seconds: 5\n"
             "#  heartbeat_line_threshold: 500\n"
@@ -772,6 +778,46 @@ def report():
     workspace = os.getcwd()
     learner = Learner(workspace)
     click.echo(format_report(learner.summary()))
+
+
+@main.command()
+@click.argument("entry_id", required=False, type=int)
+@click.option("--command", "command_name", default=None, help="Restore latest entry for this command")
+@click.option("--list", "list_mode", is_flag=True, help="List recent history entries")
+@click.option("--limit", default=10, type=int, show_default=True, help="Max rows for --list")
+@click.option("--compressed", is_flag=True, help="Show compressed output instead of raw output")
+def restore(entry_id, command_name, list_mode, limit, compressed):
+    """Restore original output from history (latest, by id, or by command)."""
+    workspace = os.getcwd()
+    store = ArchiveStore(workspace)
+
+    if list_mode:
+        entries = store.recent(limit=limit)
+        if not entries:
+            click.echo("No history entries found.")
+            return
+        click.echo("id  command                    strategy   tokens(raw->compressed)  created_at")
+        for item in entries:
+            click.echo(
+                f"{item['id']:<3} {item['command'][:24]:<24} "
+                f"{item['strategy']:<9} {item['raw_tokens']}->{item['compressed_tokens']}  "
+                f"{item['created_at']}"
+            )
+        return
+
+    if entry_id is not None:
+        row = store.by_id(entry_id)
+    elif command_name:
+        row = store.latest(command=command_name)
+    else:
+        row = store.latest()
+
+    if not row:
+        click.echo("No matching history entry found.", err=True)
+        raise SystemExit(1)
+
+    payload = row["compressed_output"] if compressed else row["raw_output"]
+    click.echo(payload, nl=False)
 
 
 @main.command(name="error-passthrough")

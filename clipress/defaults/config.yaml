@@ -8,6 +8,13 @@ engine:
   strip_ansi: true
   pass_through_on_error: false
   max_output_bytes: 10485760  # 10 MB — outputs larger than this are passed through to avoid OOM
+  # Cost guardrails
+  target_max_tokens: 0          # 0 disables hard budget mode
+  min_savings_ratio: 0.10       # enforce a minimum savings ratio for large outputs
+  min_raw_tokens_for_cost_guard: 200
+  # Recovery history (for `clipress restore`)
+  save_history: true
+  history_max_entries: 100
   # Heartbeat: periodic stderr updates while buffering unknown commands
   heartbeat_enabled: true
   heartbeat_interval_seconds: 5

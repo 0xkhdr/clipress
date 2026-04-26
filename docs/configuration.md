@@ -8,6 +8,7 @@
 .clipress/
 ├── config.yaml                    # local overrides — merged on top of built-in defaults
 ├── registry.db                    # learned command patterns (SQLite, WAL mode)
+├── history.db                     # recent raw/compressed outputs for `clipress restore`
 ├── hook.sh                        # runtime-discovery wrapper referenced by agent settings
 ├── .clipress-ignore               # blocklist — one command prefix per line
 └── extensions/                    # custom seed rules
@@ -39,6 +40,11 @@ engine:
   strip_ansi: true            # strip ANSI escape codes before processing
   pass_through_on_error: false # return raw output when error shape is detected
   max_output_bytes: 10485760  # 10 MB — outputs larger than this pass through
+  target_max_tokens: 0        # 0 disables token-budget guard
+  min_savings_ratio: 0.10     # minimum expected savings for large outputs
+  min_raw_tokens_for_cost_guard: 200
+  save_history: true          # store recent outputs for `clipress restore`
+  history_max_entries: 100
 
   heartbeat_enabled: true
   heartbeat_interval_seconds: 5
@@ -76,6 +82,11 @@ commands:                     # per-command overrides
 | `strip_ansi` | `true` | Strip ANSI escape codes before processing |
 | `pass_through_on_error` | `false` | Return raw output when the classifier detects an error shape |
 | `max_output_bytes` | `10485760` | Outputs larger than 10 MB pass through unchanged |
+| `target_max_tokens` | `0` | Optional token budget applied by adaptive fallback (0 = disabled) |
+| `min_savings_ratio` | `0.10` | Minimum reduction target for large outputs (best effort) |
+| `min_raw_tokens_for_cost_guard` | `200` | Cost guard applies only above this raw-token threshold |
+| `save_history` | `true` | Persist raw/compressed history entries for restore |
+| `history_max_entries` | `100` | Max retained history rows in `.clipress/history.db` |
 | `heartbeat_enabled` | `true` | Enable heartbeat messages during slow classification |
 | `heartbeat_interval_seconds` | `5` | Seconds between heartbeat messages |
 | `heartbeat_line_threshold` | `500` | Only enable heartbeat if buffering more than N lines |

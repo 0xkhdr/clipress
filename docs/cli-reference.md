@@ -15,6 +15,10 @@
 | `clipress status` | Show workspace path, config path, and learned stats |
 | `clipress validate` | Validate `.clipress/config.yaml`; exit non-zero on error |
 | `clipress report` | Print full token-savings summary |
+| `clipress restore` | Print latest raw output from workspace history |
+| `clipress restore <id>` | Print raw output for a specific history entry id |
+| `clipress restore --command "<cmd>"` | Print latest raw output for a command prefix |
+| `clipress restore --list` | List recent history entries (id, strategy, token savings) |
 | `clipress learn show` | Dump registry as JSON |
 | `clipress learn reset [cmd]` | Reset confidence for one command, or all entries if no argument given |
 | `clipress error-passthrough on\|off` | Toggle `pass_through_on_error` in config |
@@ -129,6 +133,29 @@ clipress report
 ```
 
 Prints a full token-savings summary across all learned commands, including compression ratios and call counts.
+
+---
+
+## `clipress restore`
+
+```bash
+# Show latest raw output
+clipress restore
+
+# Show latest raw output for a command
+clipress restore --command "git log"
+
+# Show compressed output instead
+clipress restore --compressed
+
+# List recent entries
+clipress restore --list --limit 20
+
+# Restore by id from --list
+clipress restore 14
+```
+
+Useful when an agent needs full details after seeing compressed output. History is stored in `.clipress/history.db`.
 
 ---
 

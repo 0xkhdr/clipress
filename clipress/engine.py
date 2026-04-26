@@ -3,10 +3,11 @@ import sys
 import time
 import collections
 import threading
-from clipress.config import get_config, build_seed_registry
+from clipress.config import get_config, build_seed_registry, resolve_command_overrides
 from clipress.safety import should_skip, is_security_sensitive, _compile_user_patterns
 from clipress.classifier import detect
 from clipress.learner import Learner
+from clipress.archive import ArchiveStore
 from clipress.metrics import count_tokens
 from clipress.strategies import get_strategy, get_stream_strategy_instance
 from clipress.strategies.base import StreamStrategy
@@ -58,6 +59,108 @@ def _base_command_key(cmd: str) -> str:
     """
     parts = cmd.split(None, 2)
     return " ".join(parts[:2]) if len(parts) >= 2 else cmd
+
+
+def _fit_to_token_budget(text: str, budget: int) -> str:
+    if budget <= 0:
+        return text
+    if count_tokens(text) <= budget:
+        return text
+
+    lines = text.splitlines()
+    kept: list[str] = []
+    for ln in lines:
+        candidate = "\n".join(kept + [ln])
+        if count_tokens(candidate) > budget:
+            break
+        kept.append(ln)
+
+    if kept:
+        marker = "... [token budget reached]"
+        with_marker = "\n".join(kept + [marker])
+        while kept and count_tokens(with_marker) > budget:
+            kept.pop()
+            with_marker = "\n".join(kept + [marker])
+        if kept and count_tokens(with_marker) <= budget:
+            return with_marker
+        joined = "\n".join(kept)
+        if joined and count_tokens(joined) <= budget:
+            return joined
+
+    # Last fallback for extremely dense single-line outputs.
+    words = text.split()
+    if not words:
+        return text
+    kept_words: list[str] = []
+    for w in words:
+        candidate = " ".join(kept_words + [w])
+        if count_tokens(candidate) > budget:
+            break
+        kept_words.append(w)
+    return " ".join(kept_words) if kept_words else words[0]
+
+
+def _adaptive_cost_guard(
+    output: str,
+    compressed: str,
+    raw_tokens: int,
+    compressed_tokens: int,
+    contract: dict[str, Any],
+    config: dict[str, Any],
+) -> tuple[str, int]:
+    """
+    Apply optional cost-control guardrails:
+    1) target_max_tokens: enforce an upper token budget where possible.
+    2) min_savings_ratio: ensure minimum savings for large outputs.
+    """
+    engine_cfg = config.get("engine", {})
+    target_max_tokens = int(engine_cfg.get("target_max_tokens", 0) or 0)
+    min_savings_ratio = float(engine_cfg.get("min_savings_ratio", 0.0) or 0.0)
+    min_raw_tokens = int(engine_cfg.get("min_raw_tokens_for_cost_guard", 200) or 200)
+
+    # If already small, keep strategy output unchanged.
+    if raw_tokens <= min_raw_tokens:
+        return compressed, compressed_tokens
+
+    generic = get_strategy("generic")
+    current = compressed
+    current_tokens = compressed_tokens
+    best = current
+    best_tokens = current_tokens
+
+    if target_max_tokens > 0 and raw_tokens > target_max_tokens and current_tokens > target_max_tokens:
+        for max_lines in (60, 40, 30, 20, 15, 10):
+            candidate = generic.compress(
+                output,
+                {"max_lines": max_lines, "head_lines": max(3, int(max_lines * 0.6)), "tail_lines": max(2, int(max_lines * 0.3))},
+                contract,
+            )
+            candidate_tokens = count_tokens(candidate)
+            if candidate_tokens < best_tokens:
+                best = candidate
+                best_tokens = candidate_tokens
+            if candidate_tokens <= target_max_tokens:
+                break
+
+    if min_savings_ratio > 0 and raw_tokens > 0:
+        reduction = 1.0 - (best_tokens / raw_tokens)
+        if reduction < min_savings_ratio:
+            candidate = generic.compress(
+                output,
+                {"max_lines": 20, "head_lines": 12, "tail_lines": 6},
+                contract,
+            )
+            candidate_tokens = count_tokens(candidate)
+            candidate_reduction = 1.0 - (candidate_tokens / raw_tokens)
+            if candidate_reduction > reduction:
+                best = candidate
+                best_tokens = candidate_tokens
+
+    if target_max_tokens > 0 and raw_tokens > target_max_tokens and best_tokens > target_max_tokens:
+        best = _fit_to_token_budget(best, target_max_tokens)
+        best_tokens = count_tokens(best)
+
+    return best, best_tokens
 
 
 def compress(command: str, output: str, workspace: str) -> str:
@@ -166,7 +269,7 @@ def compress(command: str, output: str, workspace: str) -> str:
         strategy = get_strategy(entry["strategy"])
 
         global_contract = config.get("contracts", {}).get("global", {})
-        cmd_contract = config.get("commands", {}).get(normalized_cmd, {})
+        cmd_contract = resolve_command_overrides(config, normalized_cmd)
         contract = {
             "always_keep": global_contract.get("always_keep", []) + cmd_contract.get("always_keep", []),
             "always_strip": global_contract.get("always_strip", []) + cmd_contract.get("always_strip", []),
@@ -183,6 +286,15 @@ def compress(command: str, output: str, workspace: str) -> str:
             compressed = output
 
         compressed_tokens = count_tokens(compressed)
+
+        compressed, compressed_tokens = _adaptive_cost_guard(
+            output=output,
+            compressed=compressed,
+            raw_tokens=raw_tokens,
+            compressed_tokens=compressed_tokens,
+            contract=contract,
+            config=config,
+        )
 
         # Size-regression guard
         if len(compressed) > len(output) or (
@@ -205,6 +317,20 @@ def compress(command: str, output: str, workspace: str) -> str:
             if learner is None:
                 learner = Learner(workspace)
             learner.record(normalized_cmd, entry["strategy"], raw_tokens, compressed_tokens)
+
+        if config.get("engine", {}).get("save_history", True):
+            max_entries = int(config.get("engine", {}).get("history_max_entries", 100) or 100)
+            archive = ArchiveStore(workspace)
+            archive.record(
+                command=normalized_cmd,
+                strategy=entry["strategy"],
+                source=entry.get("source", "unknown"),
+                raw_output=output,
+                compressed_output=compressed,
+                raw_tokens=raw_tokens,
+                compressed_tokens=compressed_tokens,
+                max_entries=max_entries,
+            )
 
         return compressed
 
@@ -235,7 +361,8 @@ def get_stream_handler(
                     return None
                 strategy_name = seed_info["strategy"]
                 seed_params = seed_info.get("params", {})
-                user_params = config.get("commands", {}).get(normalized_cmd, {}).get("params", {})
+                cmd_contract = resolve_command_overrides(config, normalized_cmd)
+                user_params = cmd_contract.get("params", {})
                 merged_params = {**seed_params, **user_params}
                 instance = get_stream_strategy_instance(strategy_name, merged_params)
                 if instance is not None:
