@@ -4,9 +4,9 @@
 engine:
   min_lines_to_compress: 15
   hot_cache_threshold: 10
-  show_metrics: true
+  show_metrics: false
   strip_ansi: true
-  pass_through_on_error: true
+  pass_through_on_error: false
   max_output_bytes: 10485760  # 10 MB — outputs larger than this are passed through to avoid OOM
   # Heartbeat: periodic stderr updates while buffering unknown commands
   heartbeat_enabled: true

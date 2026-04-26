@@ -1,5 +1,13 @@
+import os
 import time
 from clipress.engine import compress
+
+
+def test_no_compress_env_var_bypasses_compression(monkeypatch):
+    output = "line\n" * 100
+    monkeypatch.setenv("CLIPRESS_NO_COMPRESS", "1")
+    res = compress("ls", output, "/tmp")
+    assert res == output
 
 
 def test_engine_returns_original_on_exception(monkeypatch):

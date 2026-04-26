@@ -29,7 +29,7 @@ A Python-based CLI proxy that intercepts bash command output before it reaches a
 ### Install
 
 ```bash
-# One-liner (installs from GitHub, then runs `clipress init`)
+# One-liner (installs from GitHub, then auto-detects your project root and runs `clipress init`)
 curl -sSL https://raw.githubusercontent.com/0xkhdr/clipress/main/install.sh | bash
 
 # Recommended — isolated install via pipx
@@ -47,17 +47,23 @@ cd clipress
 ./install.sh            # prefers pipx, falls back to pip, then runs `clipress init`
 ```
 
-> `install.sh` detects whether it is running inside the cloned repo (presence of `pyproject.toml`) and installs from local source. When run outside a repo (including the curl path) it installs directly from GitHub.
+> `install.sh` detects whether it is running inside the cloned repo (presence of `pyproject.toml`) and installs from local source. When run outside a repo (including the curl path) it installs directly from GitHub. It also detects the nearest git repository root and initializes hooks there.
 
 ### Initialize and use
 
 ```bash
-# Initialize a workspace
+# Initialize a workspace (project-local hooks)
 cd your-project
 clipress init
 
+# Initialize globally (zero-config for all projects)
+clipress init --global
+
 # Compress a command's output (pipe mode)
 git log --oneline -100 | clipress compress "git log"
+
+# Pass through unchanged when needed
+some_command | clipress compress "some_command" --no-compress
 
 # Run a command with PTY support (handles interactive prompts)
 clipress run docker build -t myapp .
@@ -121,30 +127,30 @@ The hook entry written to `.claude/settings.json`:
     "PostToolUse": [
       {
         "matcher": "Bash",
-        "hooks": [{ "type": "command", "command": "python -m clipress.hooks.post_tool_use" }]
+        "hooks": [{ "type": "command", "command": "clipress hook" }]
       }
     ]
   }
 }
 ```
 
-If a global hook exists in `~/.claude/settings.json` (from an older `clipress init`), `init` removes it automatically to prevent double compression.
+If a global hook exists in `~/.claude/settings.json`, `init` removes it automatically to prevent double compression. Conversely, `clipress init --global` installs hooks in `~/.claude/settings.json` (and `~/.gemini/settings.json`) and removes any local project hooks.
 
 The hook reads JSON from stdin (provided by Claude Code), compresses `tool_response.output`, and writes the result back as a `tool_result` JSON envelope.
 
 ### Gemini CLI
 
-`clipress init` also registers a `PostToolUse` hook in **`.gemini/settings.json`** inside your project directory. No further configuration needed — every `run_shell_command` tool call is intercepted transparently.
+`clipress init` also registers an `AfterTool` hook in **`.gemini/settings.json`** inside your project directory. No further configuration needed — every `run_shell_command` tool call is intercepted transparently.
 
 The hook entry written to `.gemini/settings.json`:
 
 ```json
 {
   "hooks": {
-    "PostToolUse": [
+    "AfterTool": [
       {
         "matcher": "run_shell_command",
-        "hooks": [{ "type": "command", "command": "python -m clipress.hooks.post_tool_use" }]
+        "hooks": [{ "type": "command", "command": "clipress hook" }]
       }
     ]
   }
@@ -176,7 +182,7 @@ some_command | clipress compress "some_command"
 | Long-running build (docker, cargo, npm) | `clipress run docker build -t app .` |
 | Command that may prompt for input | `clipress run <cmd>` |
 | Agent-driven bash via Claude Code | Automatic (PostToolUse hook in `.claude/settings.json`) |
-| Agent-driven bash via Gemini CLI | Automatic (PostToolUse hook in `.gemini/settings.json`) |
+| Agent-driven bash via Gemini CLI | Automatic (AfterTool hook in `.gemini/settings.json`) |
 
 ---
 
@@ -517,8 +523,10 @@ clipress is a compressor, not a validator. It must never crash the agent or bloc
 
 | Command | Description |
 | :--- | :--- |
-| `clipress init` | Create `.clipress/` in the current directory with default config |
+| `clipress init` | Create `.clipress/` in the current directory with default config and local agent hooks |
+| `clipress init --global` | Install global agent hooks in `~/.claude/` and `~/.gemini/` |
 | `clipress compress "<cmd>"` | Read stdin, write compressed output to stdout |
+| `clipress compress "<cmd>" --no-compress` | Read stdin, pass through unchanged |
 | `clipress run <cmd> [args…]` | Spawn command in PTY; compress output, auto-switch to passthrough on interactive prompt |
 | `clipress status` | Show workspace path, config path, and learned stats |
 | `clipress validate` | Validate `.clipress/config.yaml`; exit non-zero on error |
@@ -526,7 +534,14 @@ clipress is a compressor, not a validator. It must never crash the agent or bloc
 | `clipress learn show` | Dump registry as JSON |
 | `clipress learn reset [cmd]` | Reset confidence for one command, or all entries |
 | `clipress error-passthrough on\|off` | Toggle `pass_through_on_error` in config |
-| `clipress uninstall` | Remove the PostToolUse hook from `.claude/settings.json` |
+| `clipress uninstall` | Remove hooks and uninstall the package |
+
+### Environment Variables
+
+| Variable | Effect |
+| :--- | :--- |
+| `CLIPRESS_NO_COMPRESS=1` | Bypass compression entirely; output passes through unchanged. Useful when you need the raw output for a single command or session. |
+| `CLIPRESS_DEBUG=1` | Surface internal errors to stderr instead of silently falling back to raw output. |
 
 ### `clipress run` — PTY Mode
 

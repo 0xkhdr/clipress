@@ -37,8 +37,19 @@ def status():
 
 
 @main.command()
-def init():
-    """Initializes .clipress/ in current directory with a full scaffold"""
+@click.option("--global", "global_", is_flag=True, help="Install global hooks in ~/.claude and ~/.gemini instead of project-local")
+def init(global_):
+    """Initializes .clipress/ and agent hooks."""
+    if global_:
+        _register_global_claude_hook()
+        _register_global_gemini_hook()
+        # Remove any local hooks from CWD to avoid double-compression
+        _unregister_claude_hook(os.getcwd())
+        _unregister_gemini_hook(os.getcwd())
+        click.echo("Initialized clipress globally.")
+        click.echo("Hooks are active for all Claude Code and Gemini CLI projects.")
+        return
+
     workspace = os.getcwd()
     comp_dir = Path(workspace) / ".clipress"
     comp_dir.mkdir(mode=0o700, exist_ok=True)
@@ -49,9 +60,9 @@ def init():
             "# clipress workspace configuration\n"
             "# See README for full schema.\n"
             "engine:\n"
-            "  show_metrics: true\n"
+            "  show_metrics: false\n"
             "#  max_output_bytes: 10485760  # 10 MB\n"
-            "#  pass_through_on_error: true\n"
+            "#  pass_through_on_error: false\n"
             "#  heartbeat_enabled: true\n"
             "#  heartbeat_interval_seconds: 5\n"
             "#  heartbeat_line_threshold: 500\n"
@@ -100,14 +111,29 @@ def init():
 
     _register_claude_hook(workspace)
     _register_gemini_hook(workspace)
+    _remove_global_claude_hook(silent=False)
     click.echo("Initialized clipress in this directory.")
 
 
 _HOOK_COMMAND = "clipress hook"
+_HOOK_FALLBACK = f"{sys.executable} -m clipress.hooks.post_tool_use"
 
 
 def _resolve_hook_command() -> str:
-    return _HOOK_COMMAND
+    # Prefer the absolute binary path so the command is short and readable.
+    # Fall back to sys.executable (the exact Python running clipress right now)
+    # when clipress is not on PATH — e.g. inside a uv-managed venv or a pipx
+    # env whose bin dir hasn't been added to the shell PATH yet.  This is
+    # always correct: sys.executable already has clipress installed.
+    abs_path = shutil.which("clipress")
+    if abs_path:
+        return f"{abs_path} hook"
+    return _HOOK_FALLBACK
+
+
+def _is_clipress_hook(cmd: str) -> bool:
+    """Return True if the command string is a clipress hook, in any form."""
+    return cmd.endswith("clipress hook") or "clipress.hooks.post_tool_use" in cmd
 
 
 def _write_hook_to_settings(
@@ -118,7 +144,7 @@ def _write_hook_to_settings(
     hook_command: str | None = None,
 ) -> bool:
     """Insert a hook entry into a settings.json file. Returns True if written."""
-    cmd = hook_command or _HOOK_COMMAND
+    cmd = hook_command or _HOOK_FALLBACK
     settings: dict = {}
     if settings_path.exists():
         try:
@@ -133,8 +159,15 @@ def _write_hook_to_settings(
     for h in event_hooks:
         if h.get("matcher") == matcher:
             for sub in h.get("hooks", []):
-                if sub.get("command", "").endswith("clipress hook"):
-                    return False  # already present
+                if _is_clipress_hook(sub.get("command", "")):
+                    if sub.get("command") == cmd:
+                        return False  # already up-to-date
+                    # Stale / bare command — update it in place.
+                    sub["command"] = cmd
+                    with open(settings_path, "w", encoding="utf-8") as f:
+                        json.dump(settings, f, indent=2)
+                    click.echo(f"  Updated {event_name} hook in {label}")
+                    return True
 
     event_hooks.append({"matcher": matcher, "hooks": [{"type": "command", "command": cmd}]})
     with open(settings_path, "w", encoding="utf-8") as f:
@@ -160,8 +193,8 @@ def _remove_hook_from_settings(settings_path: Path, matcher: str, label: str, ev
     removed = False
     for h in settings["hooks"][event_name]:
         if h.get("matcher") == matcher:
-            # Match bare "clipress hook" and full-path ".../clipress hook" forms
-            new_subs = [sh for sh in h.get("hooks", []) if not sh.get("command", "").endswith("clipress hook")]
+            # Match any form of clipress hook command
+            new_subs = [sh for sh in h.get("hooks", []) if not _is_clipress_hook(sh.get("command", ""))]
             if len(new_subs) != len(h.get("hooks", [])):
                 removed = True
                 if new_subs:
@@ -247,6 +280,39 @@ def _unregister_gemini_hook(workspace: str) -> None:
         click.echo(f"  Warning: Could not unregister Gemini CLI hook: {e}")
 
 
+def _register_global_claude_hook() -> None:
+    """Adds the PostToolUse hook to ~/.claude/settings.json."""
+    global_path = Path.home() / ".claude" / "settings.json"
+    global_path.parent.mkdir(mode=0o700, exist_ok=True)
+    try:
+        cmd = _resolve_hook_command()
+        _write_hook_to_settings(global_path, "Bash", "~/.claude/settings.json (global)", hook_command=cmd)
+    except Exception as e:
+        click.echo(f"  Warning: Could not register global Claude Code hook: {e}")
+
+
+def _register_global_gemini_hook() -> None:
+    """Adds the AfterTool hook to ~/.gemini/settings.json."""
+    global_path = Path.home() / ".gemini" / "settings.json"
+    global_path.parent.mkdir(mode=0o700, exist_ok=True)
+    try:
+        cmd = _resolve_hook_command()
+        _write_hook_to_settings(global_path, "run_shell_command", "~/.gemini/settings.json (global)", event_name="AfterTool", hook_command=cmd)
+    except Exception as e:
+        click.echo(f"  Warning: Could not register global Gemini CLI hook: {e}")
+
+
+def _remove_global_gemini_hook(silent: bool = True) -> None:
+    """Removes the AfterTool hook from the global ~/.gemini/settings.json if present."""
+    global_path = Path.home() / ".gemini" / "settings.json"
+    try:
+        removed = _remove_hook_from_settings(global_path, "run_shell_command", "~/.gemini/settings.json (global)", event_name="AfterTool")
+        if removed and not silent:
+            click.echo("  Note: Removed global Gemini hook to prevent double compression.")
+    except Exception:
+        pass
+
+
 @main.group()
 def learn():
     """Learned command registry commands"""
@@ -280,10 +346,14 @@ def reset(command_name):
 @main.command(name="compress")
 @click.argument("cmd_string")
 @click.option("--workspace", default=None)
-def compress_cmd(cmd_string, workspace):
+@click.option("--no-compress", is_flag=True, help="Pass stdin through unchanged (sets CLIPRESS_NO_COMPRESS=1)")
+def compress_cmd(cmd_string, workspace, no_compress):
     """Compresses stdin output based on command string"""
     if not workspace:
         workspace = os.getcwd()
+
+    if no_compress:
+        os.environ["CLIPRESS_NO_COMPRESS"] = "1"
 
     # Read heartbeat config before draining stdin so the interval is correct.
     cfg_engine = get_config(workspace).get("engine", {})
@@ -690,7 +760,7 @@ def error_passthrough(state):
 @click.option("--yes", "-y", is_flag=True, help="Skip confirmation prompt")
 @click.option("--keep-data", is_flag=True, help="Keep .clipress/ workspace data")
 def uninstall(yes, keep_data):
-    """Removes .clipress/ workspace data and uninstalls the clipress package"""
+    """Removes .clipress/ workspace data, hooks, and uninstalls the package"""
     workspace = os.getcwd()
     comp_dir = Path(workspace) / ".clipress"
 
@@ -703,6 +773,7 @@ def uninstall(yes, keep_data):
     _unregister_claude_hook(workspace)
     _unregister_gemini_hook(workspace)
     _remove_global_claude_hook(silent=False)
+    _remove_global_gemini_hook(silent=False)
 
     if not keep_data and comp_dir.exists():
         shutil.rmtree(comp_dir)

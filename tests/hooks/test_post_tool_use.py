@@ -52,6 +52,37 @@ def test_hook_passes_through_empty_output(tmp_path):
     assert out == ""  # empty output — skip
 
 
+def test_hook_no_compress_env_var_skips(tmp_path, monkeypatch):
+    monkeypatch.setenv("CLIPRESS_NO_COMPRESS", "1")
+    big_output = "file.txt\n" * 50
+    data = json.dumps({
+        "tool_name": "Bash",
+        "tool_input": {"command": "ls"},
+        "tool_response": {"output": big_output},
+    })
+    code, out = _invoke_hook(data, str(tmp_path))
+    assert code == 0
+    assert out == ""  # skips entirely when CLIPRESS_NO_COMPRESS is set
+
+
+def test_hook_passes_through_already_transformed_claude_output():
+    already_compressed = json.dumps({"type": "tool_result", "content": "compressed"})
+    code, out = _invoke_hook(already_compressed, "/tmp")
+    assert code == 0
+    parsed = json.loads(out)
+    assert parsed["type"] == "tool_result"
+    assert parsed["content"] == "compressed"
+
+
+def test_hook_passes_through_already_transformed_gemini_output():
+    already_compressed = json.dumps({"decision": "deny", "reason": "compressed"})
+    code, out = _invoke_hook(already_compressed, "/tmp")
+    assert code == 0
+    parsed = json.loads(out)
+    assert parsed["decision"] == "deny"
+    assert parsed["reason"] == "compressed"
+
+
 def test_hook_compresses_bash_output(tmp_path):
     big_output = "file.txt\n" * 50
     data = json.dumps({

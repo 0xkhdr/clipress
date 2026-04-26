@@ -24,6 +24,10 @@ _SHELL_TOOL_NAMES = {"Bash", "run_shell_command"}
 
 
 def main():
+    # Respect user/agent request to skip compression
+    if os.environ.get("CLIPRESS_NO_COMPRESS", "").lower() in ("1", "true", "yes"):
+        sys.exit(0)
+
     try:
         data = json.load(sys.stdin)
     except (json.JSONDecodeError, ValueError):
@@ -33,6 +37,14 @@ def main():
         sys.exit(0)
 
     tool_name = data.get("tool_name")
+
+    # If another hook already transformed the output, pass it through unchanged.
+    # This prevents double-compression when both global and project hooks exist.
+    if tool_name is None:
+        if data.get("type") == "tool_result" or data.get("decision") == "deny":
+            print(json.dumps(data))
+        sys.exit(0)
+
     if tool_name not in _SHELL_TOOL_NAMES:
         sys.exit(0)
 

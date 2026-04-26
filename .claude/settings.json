@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "clipress hook"
+            "command": "/var/www/html/rai/up/clipress/.venv/bin/clipress hook"
           }
         ]
       }

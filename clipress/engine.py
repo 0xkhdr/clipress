@@ -1,3 +1,4 @@
+import os
 import sys
 import time
 import collections
@@ -50,6 +51,10 @@ class _Heartbeat:
 
 
 def compress(command: str, output: str, workspace: str) -> str:
+    # Bypass clipress entirely if requested (e.g. by agent or user)
+    if os.environ.get("CLIPRESS_NO_COMPRESS", "").lower() in ("1", "true", "yes"):
+        return output
+
     try:
         config = get_config(workspace)
         show_metrics = config.get("engine", {}).get("show_metrics", True)
